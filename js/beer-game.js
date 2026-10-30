@@ -3,10 +3,9 @@
 // a quick online game with friends, or practice alone against the computer.
 // Online data lives in a Firebase Realtime Database, reached with plain web requests (no library).
 (function () {
-  // Address of the Firebase Realtime Database, e.g.
-  // "https://my-project-default-rtdb.asia-southeast1.firebasedatabase.app".
-  // Leave empty until the database exists: practice mode still works without it.
-  var DB_URL = "";
+  // Address of the Firebase Realtime Database (project "beer-game-data", Singapore).
+  // If it is emptied, online play switches off and only practice mode works.
+  var DB_URL = "https://beer-game-data-default-rtdb.asia-southeast1.firebasedatabase.app";
 
   var WEEKS = 20;
   var START_STOCK = 12;

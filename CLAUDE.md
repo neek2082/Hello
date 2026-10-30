@@ -76,8 +76,9 @@ warehousing and supply chain tools. Plain language throughout.
      team cost; then a ranking by team cost with each business's cost,
      and the best player in each business. Class rankings use the
      session's games; friends' games are saved under `beerScores`.
-   - [ ] Switch on online play: create the Firebase database and set
-     `DB_URL` in `js/beer-game.js`.
+   - [x] Switch on online play: Firebase project `beer-game-data`,
+     Realtime Database in Singapore (asia-southeast1), set as `DB_URL`
+     in `js/beer-game.js`.
    - Ideas: "Shipping Time to Singapore": starting port + sea or air
      in, rough total days split into steps out; landed cost with GST;
      container fit check.
