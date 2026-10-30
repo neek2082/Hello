@@ -10,9 +10,11 @@
 
 The repository is nearly empty for now. Planned layout:
 
-- `index.html` and other pages at the top level
-- `css/` for stylesheets
-- `js/` for scripts
+- `index.html`: portal homepage
+- `tools/`: one HTML page per tool
+- `css/style.css`: shared styles, including light/dark colors
+- `js/theme.js`: shared theme toggle
+- `js/<tool-name>.js`: one script per tool
 
 Update this section as files are added.
 
@@ -21,6 +23,36 @@ Update this section as files are added.
 1. Every page must be responsive and work on desktop, tablet and phone.
 2. Users can toggle between a light and a dark theme. The default is the light theme.
 3. Text must stay easy to read, with good contrast, in both the light and the dark theme.
+
+## Feature Plan
+
+A portal where the curious public can try small supply chain
+management tools. Plain language throughout.
+
+### Portal structure
+
+- **Homepage** (`index.html`): short intro and a grid of tool cards.
+  Each card has a name, a one-line description and a link.
+- **Opening a tool**: clicking a card opens that tool's own page
+  in `tools/`.
+- **Getting back**: every tool page has the shared header. Its site
+  name links home, plus an "← All tools" link above the tool.
+- **Adding a tool later**: create `tools/<tool-name>.html` and
+  `js/<tool-name>.js`, then add one card to `index.html`. Shared
+  styles (`css/style.css`) and the theme toggle (`js/theme.js`)
+  are reused as-is.
+
+### Phases
+
+1. **Portal + first tool**: homepage, shared header with theme
+   toggle, and "Shipping Time to Singapore". In: starting port +
+   sea or air. Out: rough total days, split into steps (loading,
+   travel, customs, delivery) with a plain explanation of each.
+   Figures are rough educational estimates, not a quote.
+2. **More tools**: add tools one at a time using the steps above
+   (ideas: landed cost with GST, container fit check).
+3. **Polish**: group tools by topic on the homepage once there
+   are enough of them.
 
 ## Rules for Claude
 
