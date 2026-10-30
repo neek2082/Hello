@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Site Chooser Plus — Supply Chain Tools</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/site-chooser-plus.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="site-name" href="../index.html">Supply Chain Tools</a>
+      <button type="button" class="theme-toggle">Dark theme</button>
+    </div>
+  </header>
+
+  <nav class="wrap tool-nav" aria-label="Back">
+    <a class="back-link" href="../index.html">← All tools</a>
+  </nav>
+
+<div class="band">
+  <div class="wrap">
+    <h1>Site Chooser Plus</h1>
+    <p>Choose the best of three warehouse sites by looking at cost, sustainability, governance and labour together. Then decide how much each one should count, and see how that choice changes the answer.</p>
+    <div class="toolbar">
+      <button type="button" id="btnHide" class="solid">Hide answers</button>
+      <button type="button" id="btnExample">Load lesson example</button>
+      <button type="button" id="btnClear">Clear all figures</button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <p class="notice" id="notice">The figures are the worked example from the lesson. The governance and labour ticks are sample answers added for practice. Change anything, or choose “Clear all figures” to set a new exercise.</p>
+
+  <section class="step" aria-labelledby="hWhy">
+    <div class="step-head"><div class="num q">?</div><div>
+      <h2 id="hWhy">Why look beyond cost?</h2>
+      <p>The cheapest site today is not always the cheapest site over the years. Things without a price tag now often turn into costs or risks later.</p>
+    </div></div>
+    <div class="why-grid">
+      <div class="why" style="--c: var(--c-cost)">
+        <h4><i></i>Cost</h4>
+        <p>Rent, transport, electricity and water you pay every year.</p>
+        <p class="risk"><strong>Why it matters:</strong> it is paid every single year, so a small difference per month adds up to a lot.</p>
+      </div>
+      <div class="why" style="--c: var(--c-sus)">
+        <h4><i></i>Sustainability</h4>
+        <p>How well the site helps the company cut energy use, waste and carbon.</p>
+        <p class="risk"><strong>If you ignore it:</strong> power bills and carbon taxes keep rising, and big customers may stop buying from suppliers that miss their green targets. In the lesson example, Site 1 pays $336,000 a year for electricity; solar covering just a fifth of that would save about $67,000 every year.</p>
+      </div>
+      <div class="why" style="--c: var(--c-gov)">
+        <h4><i></i>Governance</h4>
+        <p>How stable, clear and fair the local government and its rules are.</p>
+        <p class="risk"><strong>If you ignore it:</strong> slow permits can delay opening by months, while rules that keep changing or unfair practices bring surprise costs and legal risk.</p>
+      </div>
+      <div class="why" style="--c: var(--c-lab)">
+        <h4><i></i>Labour</h4>
+        <p>Whether enough people with the right skills can work at the site.</p>
+        <p class="risk"><strong>If you ignore it:</strong> shifts go unfilled, overtime and wages climb, and orders go out late, especially in a warehouse where picking is done by hand.</p>
+      </div>
+    </div>
+    <p class="keyidea"><strong>Key idea:</strong> how much each factor should count depends on the company. A low-price business cares most about cost. A company that has promised to cut carbon cannot ignore sustainability. Step 4 helps you decide.</p>
+  </section>
+
+  <section class="step" aria-labelledby="h1">
+    <div class="step-head"><div class="num">1</div><div>
+      <h2 id="h1">Enter the site details</h2>
+      <p>Type the distance from each site to each customer, how many trips go to each customer in a year, and what each site needs. You can rename the sites and customers.</p>
+    </div></div>
+    <h3>Distance from each site to each customer</h3>
+    <div class="scroll"><table id="distTable"></table></div>
+    <div><button type="button" id="btnAddCust">+ Add a customer</button></div>
+    <h3>What each site needs</h3>
+    <div class="scroll"><table id="siteTable"></table></div>
+    <h3>Prices</h3>
+    <div class="rates">
+      <label for="rTruck">Truck cost per km ($)<input type="number" id="rTruck" step="any" min="0" inputmode="decimal"></label>
+      <label for="rPower">Electricity price per kWh ($)<input type="number" id="rPower" step="any" min="0" inputmode="decimal"></label>
+      <label for="rWater">Water price per m³ ($)<input type="number" id="rWater" step="any" min="0" inputmode="decimal"></label>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="h2">
+    <div class="step-head"><div class="num">2</div><div>
+      <h2 id="h2">Yearly cost of each site</h2>
+      <p>Every cost is worked out for one full year. The cheapest site gets 5 cost points, the next 4.5, then 4.</p>
+    </div></div>
+    <p class="hidden-note notice">Answers are hidden so students can work them out first. Choose “Show answers” at the top to check.</p>
+    <div class="scroll"><table id="costTable"></table></div>
+    <div><button type="button" id="btnWorking">Show how it was worked out</button></div>
+    <div class="working answer" id="working" hidden></div>
+  </section>
+
+  <section class="step" aria-labelledby="h3">
+    <div class="step-head"><div class="num">3</div><div>
+      <h2 id="h3">Score the other factors</h2>
+      <p>Tick each point a site meets. The grey line under each point says why it matters.</p>
+    </div></div>
+    <p class="rubric"><strong>Points for each factor:</strong> meets 5 or more points gets 5, meets 4 gets 4, meets 3 gets 3, and so on.</p>
+    <div id="checklists" class="check-group"></div>
+  </section>
+
+  <section class="step" aria-labelledby="h4">
+    <div class="step-head"><div class="num">4</div><div>
+      <h2 id="h4">Decide how much each factor counts</h2>
+      <p>Pick the kind of company that is choosing the site, or answer a few questions about it. You can then fine-tune with the sliders. The four always add up to 100%.</p>
+    </div></div>
+    <h3>What kind of company is it?</h3>
+    <div class="profiles" id="profiles" role="radiogroup" aria-label="Company type"></div>
+    <details class="helper" id="helper">
+      <summary>Not sure? Answer 4 questions instead</summary>
+      <div class="helper-body">
+        <div class="qs">
+          <label for="q1">How tight is the budget?
+            <select id="q1"><option value="3">Very tight: low prices are how we win customers</option><option value="2" selected>Normal</option><option value="1">Flexible: we can pay more for a better site</option></select></label>
+          <label for="q2">Do customers or head office ask for green targets?
+            <select id="q2"><option value="3">Yes, strongly: it is in our contracts or promises</option><option value="2" selected>Sometimes</option><option value="1">No, not really</option></select></label>
+          <label for="q3">Does the business need special permits or follow strict rules?
+            <select id="q3"><option value="3">Yes: for example medicines, food or chemicals</option><option value="2" selected>Some</option><option value="1">No, ordinary goods</option></select></label>
+          <label for="q4">How many workers will the warehouse need?
+            <select id="q4"><option value="3">Many: most picking is done by hand</option><option value="2" selected>A fair number</option><option value="1">Few: mostly machines</option></select></label>
+        </div>
+        <div><button type="button" class="solid" id="btnSuggest">Suggest how much each counts</button></div>
+      </div>
+    </details>
+    <h3>Fine-tune</h3>
+    <div class="sliders" id="sliders"></div>
+    <p class="sum-line" id="sumLine"></p>
+    <div class="reason" id="reason"></div>
+  </section>
+
+  <section class="step" aria-labelledby="h5">
+    <div class="step-head"><div class="num">5</div><div>
+      <h2 id="h5">Which site should we choose?</h2>
+      <p>Each factor’s points are multiplied by how much it counts, then added up, the same way as the lesson’s scoring example.</p>
+    </div></div>
+    <div class="winner answer" id="winner"></div>
+    <div class="scroll"><table class="score-table" id="scoreTable"></table></div>
+    <div class="legend" id="legend"></div>
+    <div class="bars answer" id="bars"></div>
+    <h3>What this tells us</h3>
+    <ul class="insights answer" id="insights"></ul>
+    <h3>Your recommendation</h3>
+    <p class="unit" style="margin:0">A starting point for your write-up. Edit it in your own words before you use it.</p>
+    <textarea id="summary" class="answer" aria-label="Recommendation summary"></textarea>
+    <div class="copy-row"><button type="button" id="btnCopy">Copy text</button><span id="copied" class="copied" aria-live="polite"></span></div>
+  </section>
+</main>
+
+  <script src="../js/site-chooser-plus.js"></script>
+</body>
+</html>

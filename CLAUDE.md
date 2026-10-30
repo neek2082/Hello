@@ -9,8 +9,9 @@
 ## Project Structure
 
 - `index.html`: portal homepage
-- `tools/`: one HTML page per tool (`tool-1.html` is a placeholder)
+- `tools/`: one HTML page per tool (`site-chooser-plus.html`)
 - `css/style.css`: shared styles, including light/dark colors
+- `css/<tool-name>.css`: optional styles for one tool, with its own light/dark colors
 - `js/theme.js`: shared theme toggle
 - `js/<tool-name>.js`: one script per tool
 
@@ -36,7 +37,8 @@ management tools. Plain language throughout.
 - **Getting back**: every tool page has the shared header. Its site
   name links home, plus an "← All tools" link above the tool.
 - **Adding a tool later**: create `tools/<tool-name>.html` and
-  `js/<tool-name>.js`, then add one card to `index.html`. Shared
+  `js/<tool-name>.js` (plus `css/<tool-name>.css` if the tool needs
+  its own look), then add one card to `index.html`. Shared
   styles (`css/style.css`) and the theme toggle (`js/theme.js`)
   are reused as-is.
 
@@ -46,12 +48,15 @@ management tools. Plain language throughout.
    - [x] Portal: homepage, shared header with theme toggle, and a
      placeholder card "Tool 1 — coming soon" that opens and returns.
      Styling is neutral for now; the visual design comes later.
-   - [ ] First tool: "Shipping Time to Singapore". In: starting port +
-     sea or air. Out: rough total days, split into steps (loading,
-     travel, customs, delivery) with a plain explanation of each.
-     Figures are rough educational estimates, not a quote.
+   - [x] First tool: "Site Chooser Plus". In: three warehouse sites'
+     distances, needs and prices, plus ticks for sustainability,
+     governance and labour. Out: yearly cost per site, how much each
+     factor counts, and the best overall site with reasons. Keeps its
+     own blue look, with a matching dark theme.
 2. **More tools**: add tools one at a time using the steps above
-   (ideas: landed cost with GST, container fit check).
+   (ideas: "Shipping Time to Singapore": starting port + sea or air
+   in, rough total days split into steps out; landed cost with GST;
+   container fit check).
 3. **Polish**: group tools by topic on the homepage once there
    are enough of them.
 
