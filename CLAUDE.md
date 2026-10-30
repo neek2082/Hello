@@ -61,9 +61,13 @@ warehousing and supply chain tools. Plain language throughout.
 2. **More tools**: add tools one at a time using the steps above.
    - [x] Second tool: "Beer Game". Up to 4 players online, each on their
      own device, run the Retailer, Wholesaler, Distributor and Factory
-     for 20 weeks. The computer runs empty or idle roles. Ends with
-     costs and an orders chart that shows the bullwhip effect. Also
-     has a "Practice alone" mode that needs no database.
+     for 20 weeks. The computer runs empty or idle roles. Ends with a
+     score card (points, medal, rank, best player, high score to beat),
+     a "Top teams" table, costs and an orders chart that shows the
+     bullwhip effect. Points: 100 = as good as an all-computer team;
+     scores are kept under `beerScores` in the database. Also has a
+     "Practice alone" mode that needs no database (it keeps a personal
+     best in the browser instead).
    - [ ] Switch on online play: create the Firebase database and set
      `DB_URL` in `js/beer-game.js`.
    - Ideas: "Shipping Time to Singapore": starting port + sea or air

@@ -109,6 +109,25 @@
     return update;
   }
 
+  function teamCost(state) { return ROLES.reduce(function (sum, r) { return sum + state[r.key].total; }, 0); }
+
+  // What a team of four computer players costs. It is the yardstick for points: 100 points = as good as the computer.
+  var COMPUTER_COST = (function () {
+    var g = { weeks: WEEKS, week: 1, status: "playing", cpu: {}, state: beginWeek(initialState(), 1) };
+    ROLES.forEach(function (r) { g.cpu[r.key] = true; });
+    while (g.status === "playing") g = applyUpdate(g, "", finishWeek(g));
+    return teamCost(g.state);
+  })();
+
+  function points(cost) { return Math.round(COMPUTER_COST / Math.max(cost, 1) * 100); }
+
+  function medal(pts) {
+    if (pts >= 400) return { level: "gold", name: "Gold" };
+    if (pts >= 200) return { level: "silver", name: "Silver" };
+    if (pts >= 100) return { level: "bronze", name: "Bronze" };
+    return { level: "none", name: "Keep practising" };
+  }
+
   /* ---------- Where games are kept ---------- */
 
   // Sets a value at a slash-separated path inside an object. A null value removes it.
@@ -146,8 +165,10 @@
 
   // Online games are kept in the Firebase Realtime Database, read and written with its web address (REST).
   // The live connection is an EventSource: the database sends a message every time the game changes.
+  // Finished games' scores are kept separately under beerScores, one entry per game code.
   function FirebaseStore(base) {
-    function url(code, path) { return base.replace(/\/+$/, "") + "/beerGames/" + code + (path ? "/" + path : "") + ".json"; }
+    function at(path) { return base.replace(/\/+$/, "") + "/" + path + ".json"; }
+    function url(code, path) { return at("beerGames/" + code + (path ? "/" + path : "")); }
     function send(method, u, body) {
       return fetch(u, { method: method, body: body === undefined ? undefined : JSON.stringify(body) }).then(function (res) {
         if (!res.ok) throw new Error("The game server refused the request (error " + res.status + ").");
@@ -158,6 +179,9 @@
       get: function (code) { return send("GET", url(code)); },
       put: function (code, path, value) { return send("PUT", url(code, path), value); },
       update: function (code, obj) { return send("PATCH", url(code), obj); },
+      // All scores are read at once: each is under 100 bytes, so even thousands of games stay small.
+      readScores: function () { return send("GET", at("beerScores")); },
+      saveScore: function (code, entry) { return send("PUT", at("beerScores/" + code), entry); },
       watch: function (code, fn, onStatus) {
         var data = null, es = new EventSource(url(code));
         function handle(e, isPatch) {
@@ -516,16 +540,45 @@
     return { weeks: weeks, demand: demand, orders: orders };
   }
 
+  // The people who played, e.g. "Ana, Bo & Cy + computer".
+  function teamLabel(g) {
+    var names = ROLES.filter(function (r) { return g.players && g.players[r.key]; }).map(function (r) { return g.players[r.key].name; });
+    var label = names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names[names.length - 1] : names[0] || "Computer";
+    return names.length < ROLES.length ? label + " + computer" : label;
+  }
+
+  var scoredGame = "";
+
   function renderResults(g) {
     show("results");
-    var team = 0;
+    if (!me.practice) forget(); // the game is over, so this device shouldn't offer to go back to it
+    var team = teamCost(g.state), pts = points(team), m = medal(pts);
     $("costTable").innerHTML = "<thead><tr><th>Business</th><th>Played by</th><th>Total cost</th></tr></thead><tbody>" +
       ROLES.map(function (r) {
-        var t = g.state[r.key].total;
-        team += t;
-        return "<tr" + (r.key === me.role ? ' class="bg-me"' : "") + "><td>" + r.name + "</td><td>" + esc(playerName(g, r.key)) + "</td><td>" + money(t) + "</td></tr>";
+        return "<tr" + (r.key === me.role ? ' class="bg-me"' : "") + "><td>" + r.name + "</td><td>" + esc(playerName(g, r.key)) + "</td><td>" + money(g.state[r.key].total) + "</td></tr>";
       }).join("") + "</tbody>";
-    $("teamTotal").textContent = "Team cost: " + money(team);
+
+    // Score card
+    $("scoreEyebrow").textContent = me.practice ? "Score card · Practice game" : "Score card · Game " + me.code;
+    $("scoreTeam").textContent = "Team: " + teamLabel(g);
+    $("teamTotal").textContent = money(team);
+    $("scoreBadge").textContent = m.name;
+    $("scoreBadge").setAttribute("data-level", m.level);
+    var diff = Math.round(Math.abs(1 - team / COMPUTER_COST) * 100);
+    $("scoreCompare").textContent = team <= COMPUTER_COST
+      ? "Your team spent " + diff + "% less than a team of computer players (" + money(COMPUTER_COST) + ")."
+      : "Your team spent " + diff + "% more than a team of computer players (" + money(COMPUTER_COST) + "). Try again!";
+    var humans = ROLES.filter(function (r) { return g.players && g.players[r.key]; });
+    var best = humans.sort(function (a, b) { return g.state[a.key].total - g.state[b.key].total; })[0];
+    $("bestPlayer").textContent = best
+      ? g.players[best.key].name + " (" + best.name + ", " + money(g.state[best.key].total) + ")"
+      : "—";
+    if (scoredGame !== me.code) {
+      scoredGame = me.code;
+      window.scrollTo(0, 0);
+      countUp($("scorePoints"), pts);
+      loadBoard(g, team, pts);
+    }
 
     var s = seriesFrom(g);
     $("orderTable").innerHTML = "<thead><tr><th>Week</th><th>Shoppers</th>" + ROLES.map(function (r) { return "<th>" + r.name + "</th>"; }).join("") + "</tr></thead><tbody>" +
@@ -537,6 +590,79 @@
     var peaks = ROLES.map(function (r) { return Math.max.apply(null, s.orders[r.key]); });
     $("peakNote").textContent = "Shoppers never wanted more than 8 cases a week, but the biggest single order was " +
       Math.max.apply(null, peaks) + " cases, placed by the " + ROLES[peaks.indexOf(Math.max.apply(null, peaks))].name + ".";
+  }
+
+  // Points count up from 0 when the score card appears (shown straight away if the viewer prefers less motion).
+  function countUp(el, target) {
+    var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (still || !window.requestAnimationFrame) { el.textContent = target; return; }
+    var start = null;
+    function step(t) {
+      if (start === null) start = t;
+      var k = Math.min(1, (t - start) / 900);
+      el.textContent = Math.round(target * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(step);
+    }
+    el.textContent = "0";
+    requestAnimationFrame(step);
+  }
+
+  function loadBoard(g, cost, pts) {
+    $("boardBox").hidden = me.practice;
+    $("highBox").hidden = me.practice;
+    if (me.practice) {
+      var best = null;
+      try { best = JSON.parse(localStorage.getItem("beerGameBest")); } catch (e) { /* no saved best */ }
+      $("rankLabel").textContent = "Personal best";
+      if (!best || pts > best.points) {
+        $("scoreRank").textContent = "New personal best!";
+        try { localStorage.setItem("beerGameBest", JSON.stringify({ points: pts, cost: cost })); } catch (e) { /* not saved */ }
+      } else {
+        $("scoreRank").textContent = best.points + " points";
+      }
+      return;
+    }
+    $("rankLabel").textContent = "Rank";
+    $("scoreRank").textContent = "…";
+    $("highScore").textContent = "…";
+    var entry = { team: teamLabel(g), cost: cost, points: pts, date: Date.now() };
+    // The first player in the chain saves the score. Everyone else waits a moment and only saves it
+    // if it still isn't there (for example, that player closed the page). The database keeps only one.
+    var first = ROLES.filter(function (r) { return g.players && g.players[r.key]; })[0];
+    var saver = first && g.players[first.key].id === me.id;
+    function saveIfMissing(all) {
+      if (all && all[me.code]) return all;
+      return store.saveScore(me.code, entry).catch(function () {}).then(function () { return store.readScores(); });
+    }
+    var ready = saver
+      ? store.readScores().then(saveIfMissing)
+      : new Promise(function (done) { setTimeout(done, 3000); }).then(store.readScores).then(saveIfMissing);
+    ready.then(function (all) {
+      renderBoard(all || {});
+    }).catch(function (err) {
+      $("scoreRank").textContent = "—";
+      $("highScore").textContent = "—";
+      $("boardTable").innerHTML = "<tbody><tr><td>Couldn't load the top teams. " + esc(err.message) + "</td></tr></tbody>";
+    });
+  }
+
+  function renderBoard(all) {
+    var list = Object.keys(all).map(function (code) { var e = all[code]; e.code = code; return e; })
+      .filter(function (e) { return typeof e.cost === "number" && typeof e.points === "number"; })
+      .sort(function (a, b) { return a.cost - b.cost || a.date - b.date; });
+    var mine = -1;
+    list.forEach(function (e, i) { if (e.code === me.code) mine = i; });
+    $("scoreRank").textContent = mine >= 0 ? "#" + (mine + 1) + " of " + list.length + " teams" : "—";
+    $("highScore").textContent = list.length ? (mine === 0 ? "You have it!" : list[0].points + " points") : "—";
+
+    function row(e, i) {
+      var date = new Date(e.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+      return "<tr" + (i === mine ? ' class="bg-me"' : "") + "><td>" + (i + 1) + "</td><td>" + esc(e.team) + (i === mine ? " (you)" : "") +
+        "</td><td>" + e.points + "</td><td>" + money(e.cost) + "</td><td>" + date + "</td></tr>";
+    }
+    var rows = list.slice(0, 10).map(row);
+    if (mine >= 10) rows.push('<tr><td colspan="5">…</td></tr>', row(list[mine], mine));
+    $("boardTable").innerHTML = "<thead><tr><th>#</th><th>Team</th><th>Points</th><th>Cost</th><th>Date</th></tr></thead><tbody>" + rows.join("") + "</tbody>";
   }
 
   /* Line chart of orders per week: one line per business, plus shoppers' demand as a dashed line. */
@@ -592,7 +718,7 @@
   function setupResults() {
     $("legend").innerHTML = '<span class="bg-key bg-key-demand">Shoppers</span>' +
       ROLES.map(function (r) { return '<span class="bg-key" style="--c:var(--s-' + r.key + ')">' + r.name + "</span>"; }).join("");
-    $("againBtn").addEventListener("click", leave);
+    $("againBtn").addEventListener("click", function () { scoredGame = ""; leave(); });
     var timer;
     window.addEventListener("resize", function () {
       clearTimeout(timer);

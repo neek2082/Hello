@@ -142,8 +142,31 @@
 
     <!-- End of the game -->
     <section id="results" class="bg-stack" hidden>
-      <h1>Game over</h1>
-      <p id="teamTotal" class="bg-big"></p>
+      <article class="bg-scorecard" aria-labelledby="scoreTitle">
+        <p id="scoreEyebrow" class="bg-eyebrow"></p>
+        <h1 id="scoreTitle">Game over</h1>
+        <p id="scoreTeam" class="bg-team"></p>
+        <p class="bg-points"><span id="scorePoints">0</span> points</p>
+        <p><span id="scoreBadge" class="bg-badge"></span></p>
+        <p id="scoreCompare"></p>
+        <dl class="bg-score-grid">
+          <div><dt>Team cost</dt><dd id="teamTotal"></dd></div>
+          <div><dt id="rankLabel">Rank</dt><dd id="scoreRank"></dd></div>
+          <div><dt>Best player</dt><dd id="bestPlayer"></dd></div>
+          <div id="highBox"><dt>High score to beat</dt><dd id="highScore"></dd></div>
+        </dl>
+      </article>
+
+      <div id="boardBox" class="bg-stack">
+        <h2>Top teams</h2>
+        <p class="bg-hint">
+          100 points means your team did as well as a team of computer players. The lower your
+          team's cost, the more points you earn. Medals: Bronze from 100, Silver from 200, Gold from 400.
+        </p>
+        <div class="bg-scroll"><table id="boardTable" class="bg-table bg-board"></table></div>
+      </div>
+
+      <h2>Each business</h2>
       <div class="bg-scroll"><table id="costTable" class="bg-table"></table></div>
 
       <h2>Orders week by week</h2>
@@ -167,7 +190,7 @@
         Real companies reduce it by sharing sales figures along the chain, shortening delivery times,
         and ordering steadily instead of reacting to every change.
       </p>
-      <div><button type="button" id="againBtn" class="btn btn-primary">Back to start</button></div>
+      <div><button type="button" id="againBtn" class="btn btn-primary">New game</button></div>
     </section>
   </main>
 
