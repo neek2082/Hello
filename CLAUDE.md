@@ -8,10 +8,8 @@
 
 ## Project Structure
 
-The repository is nearly empty for now. Planned layout:
-
 - `index.html`: portal homepage
-- `tools/`: one HTML page per tool
+- `tools/`: one HTML page per tool (`tool-1.html` is a placeholder)
 - `css/style.css`: shared styles, including light/dark colors
 - `js/theme.js`: shared theme toggle
 - `js/<tool-name>.js`: one script per tool
@@ -44,11 +42,14 @@ management tools. Plain language throughout.
 
 ### Phases
 
-1. **Portal + first tool**: homepage, shared header with theme
-   toggle, and "Shipping Time to Singapore". In: starting port +
-   sea or air. Out: rough total days, split into steps (loading,
-   travel, customs, delivery) with a plain explanation of each.
-   Figures are rough educational estimates, not a quote.
+1. **Portal + first tool**
+   - [x] Portal: homepage, shared header with theme toggle, and a
+     placeholder card "Tool 1 — coming soon" that opens and returns.
+     Styling is neutral for now; the visual design comes later.
+   - [ ] First tool: "Shipping Time to Singapore". In: starting port +
+     sea or air. Out: rough total days, split into steps (loading,
+     travel, customs, delivery) with a plain explanation of each.
+     Figures are rough educational estimates, not a quote.
 2. **More tools**: add tools one at a time using the steps above
    (ideas: landed cost with GST, container fit check).
 3. **Polish**: group tools by topic on the homepage once there
