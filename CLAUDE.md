@@ -5,11 +5,16 @@
 - Plain HTML, CSS, and JavaScript only.
 - No frameworks or libraries (no React, Vue, Tailwind, etc.).
 - No build step: files are opened or served exactly as written.
+- One exception, approved for the Beer Game only: online games are kept in a
+  free Firebase Realtime Database (Spark plan). It is reached with plain web
+  requests (`fetch` and `EventSource`), not Google's code library. Its address
+  is `DB_URL` at the top of `js/beer-game.js`; when that is empty, only
+  practice mode works.
 
 ## Project Structure
 
 - `index.html`: portal homepage
-- `tools/`: one HTML page per tool (`site-chooser-plus.html`)
+- `tools/`: one HTML page per tool (`site-chooser-plus.html`, `beer-game.html`)
 - `css/style.css`: shared styles, including light/dark colors
 - `css/<tool-name>.css`: optional styles for one tool, with its own light/dark colors
 - `js/theme.js`: shared theme toggle
@@ -53,10 +58,17 @@ warehousing and supply chain tools. Plain language throughout.
      governance and labour. Out: yearly cost per site, how much each
      factor counts, and the best overall site with reasons. Keeps its
      own blue look, with a matching dark theme.
-2. **More tools**: add tools one at a time using the steps above
-   (ideas: "Shipping Time to Singapore": starting port + sea or air
-   in, rough total days split into steps out; landed cost with GST;
-   container fit check).
+2. **More tools**: add tools one at a time using the steps above.
+   - [x] Second tool: "Beer Game". Up to 4 players online, each on their
+     own device, run the Retailer, Wholesaler, Distributor and Factory
+     for 20 weeks. The computer runs empty or idle roles. Ends with
+     costs and an orders chart that shows the bullwhip effect. Also
+     has a "Practice alone" mode that needs no database.
+   - [ ] Switch on online play: create the Firebase database and set
+     `DB_URL` in `js/beer-game.js`.
+   - Ideas: "Shipping Time to Singapore": starting port + sea or air
+     in, rough total days split into steps out; landed cost with GST;
+     container fit check.
 3. **Polish**: group tools by topic on the homepage once there
    are enough of them.
 

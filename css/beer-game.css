@@ -1,0 +1,378 @@
+/* Beer Game: uses the shared colors from style.css; only adds buttons, forms, cards and the chart. */
+
+/* Chart line colors, one per business (checked for color-blind safety in both themes). */
+:root {
+  --s-retailer: #2a78d6;
+  --s-wholesaler: #eb6834;
+  --s-distributor: #1baf7a;
+  --s-factory: #eda100;
+}
+
+:root[data-theme="dark"] {
+  --s-retailer: #3987e5;
+  --s-wholesaler: #d95926;
+  --s-distributor: #199e70;
+  --s-factory: #c98500;
+}
+
+/* Keep hidden screens and panels hidden, even when they use grid or flex layouts. */
+[hidden] {
+  display: none !important;
+}
+
+.bg-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.bg-stack h1,
+.bg-stack h2,
+.bg-stack p {
+  margin: 0;
+}
+
+.bg-stack h2 {
+  font-size: 1.25rem;
+  margin-top: 8px;
+}
+
+.bg-stack .intro {
+  margin-bottom: 0;
+}
+
+/* Buttons and fields */
+.btn {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--surface);
+}
+
+.btn-primary {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+.btn-primary:hover {
+  background: var(--text-muted);
+  border-color: var(--text-muted);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bg-field {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.bg-stack input[type="text"],
+.bg-stack input[type="number"],
+.bg-stack select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.bg-stack input:disabled {
+  opacity: 0.55;
+}
+
+.bg-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.bg-row .bg-num {
+  width: 140px;
+  font-size: 1.25rem;
+}
+
+.bg-row .bg-link {
+  flex: 1 1 240px;
+  width: auto;
+}
+
+/* Cards and text */
+.bg-choices {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .bg-choices {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.bg-card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.bg-card h2,
+.bg-card h3 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.bg-card p {
+  margin: 0;
+}
+
+.bg-hint,
+.bg-note {
+  color: var(--text-muted);
+}
+
+.bg-strong {
+  font-weight: 600;
+}
+
+.bg-status {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--surface);
+  margin: 0 0 16px;
+}
+
+.bg-code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+}
+
+.bg-how summary {
+  padding: 10px 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bg-how ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.bg-how li + li {
+  margin-top: 6px;
+}
+
+/* Lobby */
+.bg-roles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 600px) {
+  .bg-roles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.bg-role {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+/* Play */
+.bg-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.bg-week {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.bg-numbers {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 0;
+}
+
+@media (min-width: 600px) {
+  .bg-numbers {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .bg-numbers {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.bg-numbers div {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.bg-numbers dt {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.bg-numbers dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bg-numbers dd.bg-hint {
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+/* Tables */
+.bg-scroll {
+  overflow-x: auto;
+}
+
+.bg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.bg-table th,
+.bg-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.bg-table th:first-child,
+.bg-table td:first-child {
+  text-align: left;
+}
+
+.bg-table thead th {
+  font-size: 0.875rem;
+}
+
+.bg-me td {
+  font-weight: 700;
+}
+
+.bg-big {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* Chart */
+.bg-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 0.875rem;
+}
+
+.bg-key::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-top: 3px solid var(--c);
+}
+
+.bg-key-demand::before {
+  border-top: 2px dashed var(--text-muted);
+}
+
+.bg-chart {
+  position: relative;
+  min-width: 0;
+}
+
+.bg-chart svg {
+  display: block;
+  max-width: 100%;
+}
+
+.bg-grid {
+  stroke: var(--border);
+  stroke-opacity: 0.35;
+}
+
+.bg-axis {
+  fill: var(--text-muted);
+  font-size: 12px;
+}
+
+.bg-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.bg-demand {
+  stroke: var(--text-muted);
+  stroke-dasharray: 5 4;
+}
+
+.bg-cross {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+}
+
+.bg-tip {
+  position: absolute;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 0.875rem;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.bg-tip[hidden] {
+  display: none;
+}

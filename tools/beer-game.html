@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beer Game — Warehousing Tools</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/beer-game.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="site-name" href="../index.html">Warehousing Tools</a>
+      <button type="button" class="theme-toggle">Dark theme</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <a class="back-link" href="../index.html">← All tools</a>
+
+    <p id="status" class="bg-status" role="status" aria-live="polite" hidden></p>
+
+    <!-- Start screen -->
+    <section id="intro" class="bg-stack">
+      <h1>Beer Game</h1>
+      <p class="intro">
+        Four businesses pass beer down a chain: a factory brews it, a distributor and a
+        wholesaler move it, and a shop sells it. Each player runs one business and only sees
+        their own orders. Can your team keep the shelves full without piling up stock?
+      </p>
+
+      <details class="bg-how">
+        <summary>How to play</summary>
+        <ul>
+          <li>Each week you see the beer that arrived, the new order you received, and what you shipped.</li>
+          <li>Then you decide how many cases to order from the business above you.</li>
+          <li>Orders take 1 week to reach them, and beer takes 2 weeks to reach you.</li>
+          <li>Every case on your shelves costs $0.50 a week. Every case you still owe costs $1 a week.</li>
+          <li>The game lasts 20 weeks. The team with the lowest total cost wins.</li>
+        </ul>
+      </details>
+
+      <div class="bg-choices">
+        <form id="createForm" class="bg-card">
+          <h2>Start an online game</h2>
+          <p class="bg-hint">You get a code to share. Up to 4 people play, each on their own device.</p>
+          <label class="bg-field">Your name
+            <input type="text" id="createName" maxlength="20" required autocomplete="nickname">
+          </label>
+          <button type="submit" class="btn btn-primary">Create game</button>
+        </form>
+
+        <form id="joinForm" class="bg-card">
+          <h2>Join an online game</h2>
+          <label class="bg-field">Game code
+            <input type="text" id="joinCode" maxlength="6" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. K7Q2PX">
+          </label>
+          <label class="bg-field">Your name
+            <input type="text" id="joinName" maxlength="20" required autocomplete="nickname">
+          </label>
+          <button type="submit" class="btn btn-primary">Join game</button>
+        </form>
+
+        <div class="bg-card">
+          <h2>Practice alone</h2>
+          <p class="bg-hint">Pick a business. The computer runs the other three.</p>
+          <label class="bg-field">Your business
+            <select id="practiceRole"></select>
+          </label>
+          <button type="button" id="practiceBtn" class="btn btn-primary">Start practice</button>
+        </div>
+      </div>
+
+      <p id="offlineNote" class="bg-note" hidden>
+        Online games aren't switched on yet. They need a free online database to pass moves between
+        players. Practice mode works now.
+      </p>
+
+      <div id="rejoin" class="bg-card" hidden>
+        <p id="rejoinText"></p>
+        <div class="bg-row">
+          <button type="button" id="rejoinBtn" class="btn btn-primary">Go back to that game</button>
+          <button type="button" id="forgetBtn" class="btn">Forget it</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Waiting room -->
+    <section id="lobby" class="bg-stack" hidden>
+      <h1>Game <span id="lobbyCode" class="bg-code"></span></h1>
+      <p class="bg-hint">Share this code, or the link below, with up to three other players.</p>
+      <div class="bg-row">
+        <input type="text" id="shareLink" class="bg-link" readonly aria-label="Link to this game">
+        <button type="button" id="copyLink" class="btn">Copy link</button>
+        <span id="copied" class="bg-hint" aria-live="polite"></span>
+      </div>
+      <h2>Choose your business</h2>
+      <ul id="roleList" class="bg-roles"></ul>
+      <p id="lobbyNote"></p>
+      <div class="bg-row">
+        <button type="button" id="startBtn" class="btn btn-primary" hidden>Start game</button>
+        <button type="button" id="leaveLobby" class="btn">Leave</button>
+      </div>
+    </section>
+
+    <!-- A week of play -->
+    <section id="play" class="bg-stack" hidden>
+      <div class="bg-top">
+        <h1 id="playTitle"></h1>
+        <p id="weekLabel" class="bg-week"></p>
+      </div>
+      <p id="spectator" class="bg-note" hidden>You're watching this game. It started before you chose a business.</p>
+      <div id="cpuNote" class="bg-card" hidden>
+        <p>The computer is running your business for now.</p>
+        <div><button type="button" id="takeBack" class="btn">Take back control</button></div>
+      </div>
+
+      <dl id="numbers" class="bg-numbers"></dl>
+
+      <form id="orderForm" class="bg-card">
+        <label for="orderInput" id="orderLabel" class="bg-strong"></label>
+        <div class="bg-row">
+          <input type="number" id="orderInput" class="bg-num" min="0" max="999" step="1" inputmode="numeric" required>
+          <button type="submit" class="btn btn-primary">Send order</button>
+        </div>
+        <p class="bg-hint">Think ahead: beer you order now takes about 3 weeks to reach your shelves.</p>
+      </form>
+
+      <div id="waiting" class="bg-card" hidden>
+        <p id="waitingText"></p>
+        <div><button type="button" id="autoBtn" class="btn">Let the computer play for them</button></div>
+      </div>
+
+      <details id="myHistoryBox" class="bg-how" hidden>
+        <summary>Your past weeks</summary>
+        <div class="bg-scroll"><table id="myHistory" class="bg-table"></table></div>
+      </details>
+
+      <div><button type="button" id="leavePlay" class="btn">Leave game</button></div>
+    </section>
+
+    <!-- End of the game -->
+    <section id="results" class="bg-stack" hidden>
+      <h1>Game over</h1>
+      <p id="teamTotal" class="bg-big"></p>
+      <div class="bg-scroll"><table id="costTable" class="bg-table"></table></div>
+
+      <h2>Orders week by week</h2>
+      <p class="bg-hint">How many cases each business ordered, compared with what shoppers actually wanted.</p>
+      <div id="legend" class="bg-legend"></div>
+      <div id="chart" class="bg-chart"></div>
+      <details class="bg-how">
+        <summary>Show as a table</summary>
+        <div class="bg-scroll"><table id="orderTable" class="bg-table"></table></div>
+      </details>
+
+      <h2>What happened?</h2>
+      <p id="peakNote"></p>
+      <p>
+        This is called the <strong>bullwhip effect</strong>. A small change at the shop (shoppers going
+        from 4 to 8 cases a week) grows bigger at every step up the chain, like a whip cracking.
+        It happens because each business only sees the orders from the one below, and beer takes
+        weeks to arrive, so people over-order to be safe and then get stuck with too much.
+      </p>
+      <p>
+        Real companies reduce it by sharing sales figures along the chain, shortening delivery times,
+        and ordering steadily instead of reacting to every change.
+      </p>
+      <div><button type="button" id="againBtn" class="btn btn-primary">Back to start</button></div>
+    </section>
+  </main>
+
+  <script src="../js/beer-game.js"></script>
+</body>
+</html>
