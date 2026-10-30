@@ -25,8 +25,8 @@ Update this section as files are added.
 
 ## Feature Plan
 
-A portal where the curious public can try small supply chain
-management tools. Plain language throughout.
+"Warehousing Tools": a portal where the curious public can try small
+warehousing and supply chain tools. Plain language throughout.
 
 ### Portal structure
 
