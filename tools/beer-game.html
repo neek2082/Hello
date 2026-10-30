@@ -42,24 +42,37 @@
       </details>
 
       <div class="bg-choices">
-        <form id="createForm" class="bg-card">
-          <h2>Start an online game</h2>
-          <p class="bg-hint">You get a code to share. Up to 4 people play, each on their own device.</p>
-          <label class="bg-field">Your name
-            <input type="text" id="createName" maxlength="20" required autocomplete="nickname">
-          </label>
-          <button type="submit" class="btn btn-primary">Create game</button>
-        </form>
-
         <form id="joinForm" class="bg-card">
-          <h2>Join an online game</h2>
-          <label class="bg-field">Game code
+          <h2>Join with a code</h2>
+          <p class="bg-hint">Students: enter the code from your lecturer and you'll be given a game and a business. Also works for a friend's game code.</p>
+          <label class="bg-field">Code
             <input type="text" id="joinCode" maxlength="6" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. K7Q2PX">
           </label>
           <label class="bg-field">Your name
             <input type="text" id="joinName" maxlength="20" required autocomplete="nickname">
           </label>
-          <button type="submit" class="btn btn-primary">Join game</button>
+          <button type="submit" class="btn btn-primary">Join</button>
+        </form>
+
+        <form id="lecturerForm" class="bg-card">
+          <h2>Lecturers: start a class</h2>
+          <p class="bg-hint">Get one code for the whole class. Students are seated 4 to a game, and you see every game live.</p>
+          <label class="bg-field">Your name
+            <input type="text" id="lecturerName" maxlength="20" required autocomplete="name">
+          </label>
+          <label class="bg-field">Number of games
+            <select id="lecturerGames"></select>
+          </label>
+          <button type="submit" class="btn btn-primary">Start class session</button>
+        </form>
+
+        <form id="createForm" class="bg-card">
+          <h2>Play with friends</h2>
+          <p class="bg-hint">Start one game and share its code. Up to 4 people play, each on their own device.</p>
+          <label class="bg-field">Your name
+            <input type="text" id="createName" maxlength="20" required autocomplete="nickname">
+          </label>
+          <button type="submit" class="btn btn-primary">Create game</button>
         </form>
 
         <div class="bg-card">
@@ -80,7 +93,7 @@
       <div id="rejoin" class="bg-card" hidden>
         <p id="rejoinText"></p>
         <div class="bg-row">
-          <button type="button" id="rejoinBtn" class="btn btn-primary">Go back to that game</button>
+          <button type="button" id="rejoinBtn" class="btn btn-primary">Go back</button>
           <button type="button" id="forgetBtn" class="btn">Forget it</button>
         </div>
       </div>
@@ -88,16 +101,17 @@
 
     <!-- Waiting room -->
     <section id="lobby" class="bg-stack" hidden>
-      <h1>Game <span id="lobbyCode" class="bg-code"></span></h1>
-      <p class="bg-hint">Share this code, or the link below, with up to three other players.</p>
-      <div class="bg-row">
-        <input type="text" id="shareLink" class="bg-link" readonly aria-label="Link to this game">
-        <button type="button" id="copyLink" class="btn">Copy link</button>
-        <span id="copied" class="bg-hint" aria-live="polite"></span>
+      <h1 id="lobbyTitle"></h1>
+      <div id="shareBox" class="bg-stack">
+        <p class="bg-hint">Share this link (or the code at the end of it) with up to three other players.</p>
+        <div class="bg-row">
+          <input type="text" id="shareLink" class="bg-link" readonly aria-label="Link to this game">
+          <button type="button" id="copyLink" class="btn">Copy link</button>
+          <span id="copied" class="bg-hint" aria-live="polite"></span>
+        </div>
       </div>
-      <h2>Choose your business</h2>
-      <ul id="roleList" class="bg-roles"></ul>
       <p id="lobbyNote"></p>
+      <ul id="roleList" class="bg-roles"></ul>
       <div class="bg-row">
         <button type="button" id="startBtn" class="btn btn-primary" hidden>Start game</button>
         <button type="button" id="leaveLobby" class="btn">Leave</button>
@@ -146,28 +160,25 @@
         <p id="scoreEyebrow" class="bg-eyebrow"></p>
         <h1 id="scoreTitle">Game over</h1>
         <p id="scoreTeam" class="bg-team"></p>
-        <p class="bg-points"><span id="scorePoints">0</span> points</p>
-        <p><span id="scoreBadge" class="bg-badge"></span></p>
+        <p class="bg-total"><span id="teamTotal"></span> team cost</p>
         <p id="scoreCompare"></p>
-        <dl class="bg-score-grid">
-          <div><dt>Team cost</dt><dd id="teamTotal"></dd></div>
-          <div><dt id="rankLabel">Rank</dt><dd id="scoreRank"></dd></div>
-          <div><dt>Best player</dt><dd id="bestPlayer"></dd></div>
-          <div id="highBox"><dt>High score to beat</dt><dd id="highScore"></dd></div>
+        <dl id="roleCosts" class="bg-score-grid bg-role-costs"></dl>
+        <dl class="bg-score-grid bg-score-two">
+          <div><dt id="rankLabel">Team rank</dt><dd id="teamRank"></dd></div>
+          <div id="bestTeamBox"><dt>Lowest team cost</dt><dd id="bestTeam"></dd></div>
         </dl>
       </article>
 
-      <div id="boardBox" class="bg-stack">
-        <h2>Top teams</h2>
-        <p class="bg-hint">
-          100 points means your team did as well as a team of computer players. The lower your
-          team's cost, the more points you earn. Medals: Bronze from 100, Silver from 200, Gold from 400.
-        </p>
-        <div class="bg-scroll"><table id="boardTable" class="bg-table bg-board"></table></div>
+      <div id="rankingBox" class="bg-stack">
+        <div class="bg-top">
+          <h2 id="rankingTitle">Ranking</h2>
+          <button type="button" id="refreshRank" class="btn" hidden>Update</button>
+        </div>
+        <p id="rankingHint" class="bg-hint"></p>
+        <div class="bg-scroll"><table id="rankTable" class="bg-table bg-board"></table></div>
+        <h3>Best player in each business</h3>
+        <div class="bg-scroll"><table id="bestTable" class="bg-table bg-board"></table></div>
       </div>
-
-      <h2>Each business</h2>
-      <div class="bg-scroll"><table id="costTable" class="bg-table"></table></div>
 
       <h2>Orders week by week</h2>
       <p class="bg-hint">How many cases each business ordered, compared with what shoppers actually wanted.</p>
@@ -191,6 +202,36 @@
         and ordering steadily instead of reacting to every change.
       </p>
       <div><button type="button" id="againBtn" class="btn btn-primary">New game</button></div>
+    </section>
+
+    <!-- Lecturer's board -->
+    <section id="teacher" class="bg-stack" hidden>
+      <h1 id="teacherTitle"></h1>
+      <div class="bg-card bg-join-info">
+        <p>Students open this page, choose <strong>Join with a code</strong> and enter:</p>
+        <p class="bg-code bg-code-big" id="teacherCode"></p>
+        <div class="bg-row">
+          <input type="text" id="teacherLink" class="bg-link" readonly aria-label="Link for students">
+          <button type="button" id="copyTeacherLink" class="btn">Copy link</button>
+          <span id="teacherCopied" class="bg-hint" aria-live="polite"></span>
+        </div>
+        <p class="bg-hint">
+          Students are seated in order (Game 1 Retailer, Wholesaler, Distributor, Factory, then Game 2…).
+          Each game starts by itself when its 4 seats are full. If a game can't fill up, start it with
+          computer players. To move a student, remove them and they join again for the next free seat.
+        </p>
+      </div>
+      <p id="teacherCounts" class="bg-strong"></p>
+      <ul id="gameGrid" class="bg-games"></ul>
+
+      <div id="teacherRanking" class="bg-stack" hidden>
+        <h2>Class ranking</h2>
+        <p class="bg-hint">Finished teams, lowest team cost first, with each business's cost.</p>
+        <div class="bg-scroll"><table id="teacherRankTable" class="bg-table bg-board"></table></div>
+        <h3>Best player in each business</h3>
+        <div class="bg-scroll"><table id="teacherBestTable" class="bg-table bg-board"></table></div>
+      </div>
+      <div><button type="button" id="leaveTeacher" class="btn">Close this board</button></div>
     </section>
   </main>
 

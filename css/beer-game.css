@@ -121,9 +121,9 @@
   gap: 16px;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 600px) {
   .bg-choices {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -343,53 +343,29 @@
   font-weight: 600;
 }
 
-.bg-points {
-  font-size: 1.25rem;
+.bg-total {
+  font-size: 1.125rem;
   font-weight: 600;
 }
 
-.bg-points span {
+.bg-total span {
   display: block;
-  font-size: 3.5rem;
+  font-size: 3rem;
   font-weight: 800;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
-
-/* The medal: colored dot plus its name, so it never relies on color alone. */
-.bg-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 14px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg);
-  font-weight: 700;
-}
-
-.bg-badge::before {
-  content: "";
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--medal, var(--border));
-}
-
-.bg-badge[data-level="gold"] { --medal: #d4a017; }
-.bg-badge[data-level="silver"] { --medal: #a7adb5; }
-.bg-badge[data-level="bronze"] { --medal: #b8733e; }
 
 .bg-score-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   width: 100%;
-  margin: 12px 0 0;
+  margin: 8px 0 0;
 }
 
 @media (min-width: 900px) {
-  .bg-score-grid {
+  .bg-role-costs {
     grid-template-columns: repeat(4, 1fr);
   }
 }
@@ -401,6 +377,11 @@
   background: var(--bg);
 }
 
+/* Your own business on the score card: thicker border plus "(you)" in its label. */
+.bg-score-grid .bg-mine {
+  border: 2px solid var(--text);
+}
+
 .bg-score-grid dt {
   font-size: 0.875rem;
   color: var(--text-muted);
@@ -410,6 +391,113 @@
   margin: 0;
   font-weight: 700;
   overflow-wrap: anywhere;
+}
+
+.bg-score-grid dd.bg-cost {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bg-score-grid dd.bg-hint {
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+/* Lecturer's board */
+.bg-code-big {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.bg-games {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 600px) {
+  .bg-games {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .bg-games {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.bg-game {
+  gap: 8px;
+  padding: 16px;
+}
+
+.bg-game[data-status="playing"] {
+  border-left: 4px solid var(--text);
+}
+
+.bg-game-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.bg-tag {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.bg-seats {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bg-seats li {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+}
+
+.bg-seats li:last-child {
+  border-bottom: 0;
+}
+
+.bg-seat-role {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.bg-seat-name {
+  overflow-wrap: anywhere;
+}
+
+.bg-x {
+  width: 44px;
+  height: 44px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.bg-x:hover {
+  border-color: var(--border);
+  color: var(--text);
 }
 
 /* Chart */

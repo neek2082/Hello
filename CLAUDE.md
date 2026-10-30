@@ -59,15 +59,23 @@ warehousing and supply chain tools. Plain language throughout.
      factor counts, and the best overall site with reasons. Keeps its
      own blue look, with a matching dark theme.
 2. **More tools**: add tools one at a time using the steps above.
-   - [x] Second tool: "Beer Game". Up to 4 players online, each on their
-     own device, run the Retailer, Wholesaler, Distributor and Factory
-     for 20 weeks. The computer runs empty or idle roles. Ends with a
-     score card (points, medal, rank, best player, high score to beat),
-     a "Top teams" table, costs and an orders chart that shows the
-     bullwhip effect. Points: 100 = as good as an all-computer team;
-     scores are kept under `beerScores` in the database. Also has a
-     "Practice alone" mode that needs no database (it keeps a personal
-     best in the browser instead).
+   - [x] Second tool: "Beer Game". 4 players, each on their own device,
+     run the Retailer, Wholesaler, Distributor and Factory for 20 weeks.
+     The computer runs empty or idle roles. Ways to play:
+     - **Class session**: a lecturer gets one code for up to 25 games.
+       Students join with the code and are seated in order (Game 1
+       Retailer → Factory, then Game 2…). Each game starts by itself when
+       its 4 seats are full; the lecturer can start a part-full game with
+       computer players, or remove a student (who rejoins for the next
+       free seat). The lecturer's board shows every game, seat and cost
+       live, plus the class ranking.
+     - **Play with friends**: one game, shared by code.
+     - **Practice alone**: no database needed.
+     Scoring is cost only (lower is better): a score card with the team
+     cost, each business's cost and rank, the team rank, and the lowest
+     team cost; then a ranking by team cost with each business's cost,
+     and the best player in each business. Class rankings use the
+     session's games; friends' games are saved under `beerScores`.
    - [ ] Switch on online play: create the Firebase database and set
      `DB_URL` in `js/beer-game.js`.
    - Ideas: "Shipping Time to Singapore": starting port + sea or air

@@ -1,5 +1,7 @@
 // Beer Game: four players each run one business in a beer supply chain, one week at a time.
-// Online games are shared through a Firebase Realtime Database using plain web requests (no library).
+// Ways to play: a lecturer's class session (up to 25 games, students seated automatically),
+// a quick online game with friends, or practice alone against the computer.
+// Online data lives in a Firebase Realtime Database, reached with plain web requests (no library).
 (function () {
   // Address of the Firebase Realtime Database, e.g.
   // "https://my-project-default-rtdb.asia-southeast1.firebasedatabase.app".
@@ -11,15 +13,17 @@
   var START_FLOW = 4;   // cases a week moving through the chain when the game starts
   var STOCK_COST = 0.5; // $ per case in stock, per week
   var OWED_COST = 1;    // $ per case owed but not yet delivered, per week
+  var MAX_GAMES = 25;   // games in one class session
   var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   var SAVE_KEY = "beerGame";
+  var BEST_KEY = "beerGameBest";
 
   // Closest to the shoppers first. Beer flows down this list; orders flow up it.
   var ROLES = [
-    { key: "retailer", name: "Retailer", desc: "The shop. Sells beer to shoppers." },
-    { key: "wholesaler", name: "Wholesaler", desc: "Supplies the Retailer." },
-    { key: "distributor", name: "Distributor", desc: "Supplies the Wholesaler." },
-    { key: "factory", name: "Factory", desc: "Brews the beer. Brewing takes 2 weeks." }
+    { key: "retailer", name: "Retailer", plural: "Retailers", desc: "The shop. Sells beer to shoppers." },
+    { key: "wholesaler", name: "Wholesaler", plural: "Wholesalers", desc: "Supplies the Retailer." },
+    { key: "distributor", name: "Distributor", plural: "Distributors", desc: "Supplies the Wholesaler." },
+    { key: "factory", name: "Factory", plural: "Factories", desc: "Brews the beer. Brewing takes 2 weeks." }
   ];
 
   // Shoppers buy 4 cases a week, then suddenly 8 from week 5 onwards.
@@ -28,8 +32,8 @@
   /* ---------- Game rules ---------- */
 
   function copy(o) { return o === undefined ? undefined : JSON.parse(JSON.stringify(o)); }
-  function roleName(key) { return ROLES.filter(function (r) { return r.key === key; })[0].name; }
   function roleIndex(key) { for (var i = 0; i < ROLES.length; i++) if (ROLES[i].key === key) return i; return -1; }
+  function roleName(key) { return ROLES[roleIndex(key)].name; }
 
   function initialState() {
     var s = {};
@@ -85,6 +89,13 @@
     return ROLES.filter(function (r) { return !isComputer(g, r.key) && placed[r.key] === undefined; });
   }
 
+  // Starting a game: any empty seat is run by the computer.
+  function startUpdate(g) {
+    var cpu = {};
+    ROLES.forEach(function (r) { if (!(g.players && g.players[r.key])) cpu[r.key] = true; });
+    return { status: "playing", week: 1, weeks: WEEKS, cpu: cpu, state: beginWeek(initialState(), 1) };
+  }
+
   // Everything that changes when a week is finished, as one update. It only depends on the game data,
   // so if two players' browsers both finish the same week they write exactly the same thing.
   function finishWeek(g) {
@@ -111,7 +122,7 @@
 
   function teamCost(state) { return ROLES.reduce(function (sum, r) { return sum + state[r.key].total; }, 0); }
 
-  // What a team of four computer players costs. It is the yardstick for points: 100 points = as good as the computer.
+  // What a team of four computer players costs, shown on the score card for comparison.
   var COMPUTER_COST = (function () {
     var g = { weeks: WEEKS, week: 1, status: "playing", cpu: {}, state: beginWeek(initialState(), 1) };
     ROLES.forEach(function (r) { g.cpu[r.key] = true; });
@@ -119,20 +130,17 @@
     return teamCost(g.state);
   })();
 
-  function points(cost) { return Math.round(COMPUTER_COST / Math.max(cost, 1) * 100); }
-
-  function medal(pts) {
-    if (pts >= 400) return { level: "gold", name: "Gold" };
-    if (pts >= 200) return { level: "silver", name: "Silver" };
-    if (pts >= 100) return { level: "bronze", name: "Bronze" };
-    return { level: "none", name: "Keep practising" };
-  }
-
   /* ---------- Where games are kept ---------- */
 
+  function keysOf(path) { return path.split("/").filter(Boolean); }
+  function getPath(root, path) {
+    var o = root;
+    keysOf(path).forEach(function (k) { o = o && typeof o === "object" ? o[k] : undefined; });
+    return o === undefined ? null : o;
+  }
   // Sets a value at a slash-separated path inside an object. A null value removes it.
   function setPath(root, path, value) {
-    var keys = path.split("/").filter(Boolean);
+    var keys = keysOf(path);
     if (!keys.length) return value;
     var top = root && typeof root === "object" ? root : {}, o = top;
     for (var i = 0; i < keys.length - 1; i++) {
@@ -150,40 +158,43 @@
 
   // Practice games live only in this browser tab.
   function LocalStore() {
-    var data = {}, listeners = {};
-    function emit(code) {
-      var fn = listeners[code];
-      if (fn) setTimeout(function () { fn(copy(data[code] || null)); }, 0);
+    var root = {}, watchers = [];
+    function emit() {
+      watchers.forEach(function (w) { setTimeout(function () { w.fn(copy(getPath(root, w.path))); }, 0); });
     }
     return {
-      get: function (code) { return Promise.resolve(copy(data[code] || null)); },
-      put: function (code, path, value) { data[code] = setPath(data[code], path, copy(value)); emit(code); return Promise.resolve(); },
-      update: function (code, obj) { data[code] = applyUpdate(data[code] || {}, "", copy(obj)); emit(code); return Promise.resolve(); },
-      watch: function (code, fn) { listeners[code] = fn; emit(code); return function () { delete listeners[code]; }; }
+      get: function (path) { return Promise.resolve(copy(getPath(root, path))); },
+      put: function (path, value) { root = setPath(root, path, copy(value)); emit(); return Promise.resolve(); },
+      update: function (path, obj) { root = applyUpdate(root, path, copy(obj)); emit(); return Promise.resolve(); },
+      watch: function (path, fn) {
+        var w = { path: path, fn: fn };
+        watchers.push(w);
+        emit();
+        return function () { watchers.splice(watchers.indexOf(w), 1); };
+      }
     };
   }
 
-  // Online games are kept in the Firebase Realtime Database, read and written with its web address (REST).
-  // The live connection is an EventSource: the database sends a message every time the game changes.
-  // Finished games' scores are kept separately under beerScores, one entry per game code.
+  // Online data is kept in the Firebase Realtime Database, read and written with its web address (REST).
+  // The live connection is an EventSource: the database sends a message every time the data changes.
+  //   beerGames/<code>               a quick game with friends
+  //   beerSessions/<code>/info       a lecturer's class session
+  //   beerSessions/<code>/games/g<n> game n of that session
+  //   beerScores/<code>              the result of a finished quick game
   function FirebaseStore(base) {
     function at(path) { return base.replace(/\/+$/, "") + "/" + path + ".json"; }
-    function url(code, path) { return at("beerGames/" + code + (path ? "/" + path : "")); }
-    function send(method, u, body) {
-      return fetch(u, { method: method, body: body === undefined ? undefined : JSON.stringify(body) }).then(function (res) {
-        if (!res.ok) throw new Error("The game server refused the request (error " + res.status + ").");
+    function send(method, path, body) {
+      return fetch(at(path), { method: method, body: body === undefined ? undefined : JSON.stringify(body) }).then(function (res) {
+        if (!res.ok) throw new Error(res.status === 401 ? "Someone else got there first. Please try again." : "The game server refused the request (error " + res.status + ").");
         return res.json();
       });
     }
     return {
-      get: function (code) { return send("GET", url(code)); },
-      put: function (code, path, value) { return send("PUT", url(code, path), value); },
-      update: function (code, obj) { return send("PATCH", url(code), obj); },
-      // All scores are read at once: each is under 100 bytes, so even thousands of games stay small.
-      readScores: function () { return send("GET", at("beerScores")); },
-      saveScore: function (code, entry) { return send("PUT", at("beerScores/" + code), entry); },
-      watch: function (code, fn, onStatus) {
-        var data = null, es = new EventSource(url(code));
+      get: function (path) { return send("GET", path); },
+      put: function (path, value) { return send("PUT", path, value); },
+      update: function (path, obj) { return send("PATCH", path, obj); },
+      watch: function (path, fn, onStatus) {
+        var data = null, es = new EventSource(at(path));
         function handle(e, isPatch) {
           var msg = JSON.parse(e.data);
           data = isPatch ? applyUpdate(data || {}, msg.path, msg.data) : setPath(data, msg.path, msg.data);
@@ -199,6 +210,64 @@
     };
   }
 
+  /* ---------- Rankings ---------- */
+
+  // One finished game as a ranking entry: team cost plus each business's cost.
+  function entryFor(g, id, label) {
+    var e = { id: id, label: label, cost: teamCost(g.state), roles: {}, names: {}, date: Date.now() };
+    ROLES.forEach(function (r) {
+      e.roles[r.key] = g.state[r.key].total;
+      e.names[r.key] = g.players && g.players[r.key] ? g.players[r.key].name : "Computer";
+    });
+    return e;
+  }
+
+  // Finished games of a class session, as ranking entries.
+  function classEntries(s) {
+    var list = [], games = (s && s.games) || {};
+    for (var n = 1; n <= MAX_GAMES; n++) {
+      var g = games["g" + n];
+      if (g && g.status === "done" && g.state) list.push(entryFor(g, "g" + n, "Game " + n));
+    }
+    return list;
+  }
+
+  function byCost(list) { return list.slice().sort(function (a, b) { return a.cost - b.cost || a.date - b.date; }); }
+
+  // Entries played by a person (not the computer) in a role, cheapest first.
+  function byRole(list, key) {
+    return list.filter(function (e) { return e.names[key] !== "Computer"; })
+      .sort(function (a, b) { return a.roles[key] - b.roles[key] || a.date - b.date; });
+  }
+
+  function teamText(e) {
+    var names = ROLES.map(function (r) { return e.names[r.key]; }).filter(function (n) { return n !== "Computer"; });
+    var people = names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names[names.length - 1] : names[0] || "Computer";
+    if (names.length < ROLES.length) people += " + computer";
+    return e.label ? e.label + " (" + people + ")" : people;
+  }
+
+  function rankingTable(list, mineId) {
+    var sorted = byCost(list);
+    var rows = sorted.map(function (e, i) {
+      var me = e.id === mineId;
+      return "<tr" + (me ? ' class="bg-me"' : "") + "><td>" + (i + 1) + "</td><td>" + esc(teamText(e)) + (me ? " (you)" : "") +
+        "</td><td>" + money(e.cost) + "</td>" + ROLES.map(function (r) { return "<td>" + money(e.roles[r.key]) + "</td>"; }).join("") + "</tr>";
+    });
+    return "<thead><tr><th>#</th><th>Team</th><th>Team cost</th>" + ROLES.map(function (r) { return "<th>" + r.name + "</th>"; }).join("") +
+      "</tr></thead><tbody>" + rows.join("") + "</tbody>";
+  }
+
+  function bestByRoleTable(list) {
+    return "<thead><tr><th>Business</th><th>Best player</th><th>Team</th><th>Cost</th></tr></thead><tbody>" +
+      ROLES.map(function (r) {
+        var best = byRole(list, r.key)[0];
+        return "<tr><td>" + r.name + "</td>" + (best
+          ? "<td>" + esc(best.names[r.key]) + "</td><td>" + esc(best.label || teamText(best)) + "</td><td>" + money(best.roles[r.key]) + "</td>"
+          : '<td colspan="3">No one yet</td>') + "</tr>";
+      }).join("") + "</tbody>";
+  }
+
   /* ---------- Page ---------- */
 
   var $ = function (id) { return document.getElementById(id); };
@@ -212,11 +281,26 @@
   }
 
   var online = DB_URL ? FirebaseStore(DB_URL) : null;
-  var store = null, stopWatching = null, game = null, finishingWeek = 0, shownWeek = 0;
-  var me = { code: "", role: "", id: randomId(12), name: "", practice: false };
+  var store = null, stopWatching = null, game = null, session = null;
+  var finishingWeek = 0, shownWeek = 0, startingGame = "", scoredGame = "";
+  // kind: "quick" (game with friends), "class" (student in a session), "lecturer" or "practice".
+  var me = blankMe();
+
+  function blankMe() { return { kind: "", code: "", game: 0, role: "", id: randomId(12), name: "" }; }
+
+  function gamePath() {
+    if (me.kind === "class") return "beerSessions/" + me.code + "/games/g" + me.game;
+    if (me.kind === "practice") return "practice/game";
+    return "beerGames/" + me.code;
+  }
+  function gameTitle() {
+    if (me.kind === "class") return "Class " + me.code + " · Game " + me.game;
+    if (me.kind === "practice") return "Practice game";
+    return "Game " + me.code;
+  }
 
   function save() {
-    if (me.practice) return;
+    if (me.kind === "practice") return;
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(me)); } catch (e) { /* not saved: rejoining needs the code */ }
   }
   function loadSaved() {
@@ -231,55 +315,79 @@
     $("status").hidden = !msg;
   }
   function show(id) {
-    ["intro", "lobby", "play", "results"].forEach(function (s) { $(s).hidden = s !== id; });
+    ["intro", "lobby", "play", "results", "teacher"].forEach(function (s) { $(s).hidden = s !== id; });
   }
   function playerName(g, key) {
     if (g.cpu && g.cpu[key]) return "Computer";
     return g.players && g.players[key] ? g.players[key].name : "Computer";
   }
+  function seatsTaken(g) { return ROLES.filter(function (r) { return g.players && g.players[r.key]; }).length; }
 
-  function openGame(code, useStore) {
-    if (stopWatching) stopWatching();
-    store = useStore;
-    me.code = code;
-    finishingWeek = 0;
-    shownWeek = 0;
-    save();
-    stopWatching = store.watch(code, onGame, status);
-  }
-
-  function leave() {
+  function stop() {
     if (stopWatching) stopWatching();
     stopWatching = null;
     game = null;
-    if (!me.practice) forget();
-    me = { code: "", role: "", id: randomId(12), name: "", practice: false };
+    session = null;
+  }
+
+  function openGame(useStore) {
+    stop();
+    store = useStore || online;
+    finishingWeek = 0;
+    shownWeek = 0;
+    save();
+    stopWatching = store.watch(gamePath(), onGame, status);
+  }
+
+  function leave() {
+    stop();
+    if (me.kind !== "practice") forget();
+    me = blankMe();
+    scoredGame = "";
     status("");
     showIntro();
   }
 
   function onGame(g) {
+    var seat = g && g.players && me.role ? g.players[me.role] : null;
+    if (me.kind === "class" && (!seat || seat.id !== me.id)) {
+      var where = gameTitle();
+      leave();
+      status("You no longer have a seat in " + where + ". The lecturer may have moved you: enter the class code again to get a new seat.");
+      return;
+    }
     if (!g) {
-      status("No game with the code " + me.code + " was found.");
-      if (!me.practice) forget();
-      showIntro();
+      var code = me.code;
+      leave();
+      status("No game with the code " + code + " was found.");
       return;
     }
     game = g;
-    if (me.role && g.players && g.players[me.role] && g.players[me.role].id !== me.id) {
+    if (me.role && seat && seat.id !== me.id) {
       status("Someone else took the " + roleName(me.role) + " role. Please choose another.");
       me.role = "";
       save();
     }
-    if (g.status === "lobby") renderLobby(g);
-    else if (g.status === "playing") { renderPlay(g); maybeFinishWeek(g); }
-    else renderResults(g);
+    var st = g.status || "lobby";
+    if (st === "lobby") {
+      // In a class, a game starts by itself once all four seats are filled.
+      if (me.kind === "class" && seatsTaken(g) === ROLES.length && startingGame !== gamePath()) {
+        startingGame = gamePath();
+        store.update(gamePath(), startUpdate(g)).catch(function (err) { startingGame = ""; status(err.message); });
+      }
+      renderLobby(g);
+    } else if (st === "playing") {
+      renderPlay(g);
+      maybeFinishWeek(g);
+    } else {
+      renderResults(g);
+    }
   }
 
   function maybeFinishWeek(g) {
     if (g.status !== "playing" || waitingFor(g).length || finishingWeek === g.week) return;
     finishingWeek = g.week;
-    store.update(me.code, finishWeek(g)).catch(function (err) { finishingWeek = 0; status(err.message); });
+    store.update(gamePath(), finishWeek(g)).catch(function (err) { finishingWeek = 0; status(err.message); });
   }
 
   /* ----- Start screen ----- */
@@ -287,107 +395,177 @@
   function showIntro() {
     show("intro");
     var saved = loadSaved();
-    $("rejoin").hidden = !(online && saved && saved.code);
-    if (online && saved && saved.code) {
-      $("rejoinText").textContent = "You were in game " + saved.code + (saved.role ? " as the " + roleName(saved.role) : "") + ".";
-    }
+    var ok = !!(online && saved && saved.code);
+    $("rejoin").hidden = !ok;
+    if (!ok) return;
+    var text = saved.kind === "lecturer" ? "You were running class session " + saved.code + "."
+      : saved.kind === "class" ? "You were in class " + saved.code + ", Game " + saved.game + ", as the " + roleName(saved.role) + "."
+      : "You were in game " + saved.code + (saved.role ? " as the " + roleName(saved.role) : "") + ".";
+    $("rejoinText").textContent = text;
+  }
+
+  // A new 6-character code that isn't used by a game or a class yet.
+  function freshCode(triesLeft) {
+    var code = randomId(6, CODE_CHARS);
+    return Promise.all([online.get("beerGames/" + code + "/created"), online.get("beerSessions/" + code + "/info")]).then(function (found) {
+      if (found[0] === null && found[1] === null) return code;
+      if (triesLeft > 1) return freshCode(triesLeft - 1);
+      throw new Error("Couldn't find a free code. Please try again.");
+    });
   }
 
   function setupIntro() {
     $("practiceRole").innerHTML = ROLES.map(function (r) { return '<option value="' + r.key + '">' + r.name + "</option>"; }).join("");
+    var options = "";
+    for (var n = 1; n <= MAX_GAMES; n++) options += '<option value="' + n + '"' + (n === 8 ? " selected" : "") + ">" + n + " (up to " + n * 4 + " students)</option>";
+    $("lecturerGames").innerHTML = options;
     if (!online) {
       $("offlineNote").hidden = false;
-      document.querySelectorAll("#createForm input, #createForm button, #joinForm input, #joinForm button").forEach(function (el) { el.disabled = true; });
+      document.querySelectorAll("#lecturerForm input, #lecturerForm select, #lecturerForm button, #createForm input, #createForm button, #joinForm input, #joinForm button")
+        .forEach(function (el) { el.disabled = true; });
     }
-    var fromLink = new URLSearchParams(location.search).get("game");
+    var params = new URLSearchParams(location.search);
+    var fromLink = params.get("code") || params.get("game");
     if (fromLink) $("joinCode").value = fromLink.toUpperCase();
 
+    $("lecturerForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      createSession($("lecturerName").value.trim(), Number($("lecturerGames").value));
+    });
     $("createForm").addEventListener("submit", function (e) {
       e.preventDefault();
-      me.name = $("createName").value.trim();
-      me.practice = false;
-      createGame(5);
+      createQuickGame($("createName").value.trim());
     });
     $("joinForm").addEventListener("submit", function (e) {
       e.preventDefault();
       var code = $("joinCode").value.trim().toUpperCase();
-      if (!/^[A-Z2-9]{6}$/.test(code)) { status("A game code is 6 letters and numbers, like K7Q2PX."); return; }
-      me.name = $("joinName").value.trim();
-      me.practice = false;
-      me.role = "";
-      status("");
-      openGame(code, online);
+      if (!/^[A-Z2-9]{6}$/.test(code)) { status("A code is 6 letters and numbers, like K7Q2PX."); return; }
+      joinWithCode(code, $("joinName").value.trim());
     });
     $("practiceBtn").addEventListener("click", startPractice);
     $("rejoinBtn").addEventListener("click", function () {
-      var saved = loadSaved();
-      me = saved;
-      me.practice = false;
+      me = loadSaved();
       status("");
-      openGame(saved.code, online);
+      if (me.kind === "lecturer") openTeacher();
+      else openGame(online);
     });
     $("forgetBtn").addEventListener("click", function () { forget(); showIntro(); });
   }
 
-  function newGame() {
-    return { created: Date.now(), hostId: me.id, hostName: me.name, weeks: WEEKS, status: "lobby", week: 0 };
+  function createQuickGame(name) {
+    status("Creating the game…");
+    freshCode(5).then(function (code) {
+      me = blankMe();
+      me.kind = "quick";
+      me.code = code;
+      me.name = name;
+      var g = { created: Date.now(), hostId: me.id, hostName: name, weeks: WEEKS, status: "lobby", week: 0 };
+      return online.update("beerGames/" + code, g).then(function () { status(""); openGame(online); });
+    }).catch(function (err) { status(err.message || "Couldn't reach the game server."); });
   }
 
-  function createGame(triesLeft) {
-    var code = randomId(6, CODE_CHARS);
-    status("Creating the game…");
-    online.get(code).then(function (existing) {
-      if (existing) {
-        if (triesLeft > 1) return createGame(triesLeft - 1);
-        throw new Error("Couldn't find a free game code. Please try again.");
-      }
-      return online.put(code, "", newGame()).then(function () {
+  function createSession(name, games) {
+    status("Creating the class session…");
+    freshCode(5).then(function (code) {
+      me = blankMe();
+      me.kind = "lecturer";
+      me.code = code;
+      me.name = name;
+      var info = { created: Date.now(), hostId: me.id, hostName: name, games: Math.max(1, Math.min(MAX_GAMES, games)) };
+      return online.put("beerSessions/" + code + "/info", info).then(function () { status(""); openTeacher(); });
+    }).catch(function (err) { status(err.message || "Couldn't reach the game server."); });
+  }
+
+  // The same box joins a class session or a quick game, whichever the code belongs to.
+  function joinWithCode(code, name) {
+    status("Looking for " + code + "…");
+    online.get("beerSessions/" + code + "/info").then(function (info) {
+      if (info) return takeClassSeat(code, info.games, name, 5);
+      return online.get("beerGames/" + code + "/created").then(function (created) {
+        if (created === null) throw new Error("No game or class with the code " + code + " was found.");
+        me = blankMe();
+        me.kind = "quick";
+        me.code = code;
+        me.name = name;
         status("");
-        me.role = "";
-        openGame(code, online);
+        openGame(online);
       });
     }).catch(function (err) { status(err.message || "Couldn't reach the game server."); });
   }
 
-  function startPractice() {
-    me.practice = true;
-    me.name = "You";
-    me.role = $("practiceRole").value;
-    var g = newGame(), cpu = {};
-    g.players = {};
-    g.players[me.role] = { name: me.name, id: me.id };
-    ROLES.forEach(function (r) { if (r.key !== me.role) cpu[r.key] = true; });
-    g.cpu = cpu;
-    g.status = "playing";
-    g.week = 1;
-    g.state = beginWeek(initialState(), 1);
-    var local = LocalStore();
-    status("");
-    local.put("PRACTICE", "", g).then(function () { openGame("PRACTICE", local); });
+  // Seats students in order: Game 1 Retailer, Wholesaler, Distributor, Factory, then Game 2, and so on.
+  // Each seat can only be taken once, so if two students grab the same seat, one tries the next free one.
+  function takeClassSeat(code, games, name, triesLeft) {
+    var base = "beerSessions/" + code + "/games/g", reads = [];
+    for (var n = 1; n <= games; n++) reads.push(Promise.all([online.get(base + n + "/status"), online.get(base + n + "/players")]));
+    return Promise.all(reads).then(function (all) {
+      var seat = null;
+      all.some(function (found, i) {
+        if (found[0] && found[0] !== "lobby") return false;
+        var free = ROLES.filter(function (r) { return !(found[1] && found[1][r.key]); })[0];
+        if (free) seat = { game: i + 1, role: free.key };
+        return !!seat;
+      });
+      if (!seat) throw new Error("All " + games + " games in this class are full or have already started. Please ask your lecturer.");
+      var id = randomId(12);
+      return online.put(base + seat.game + "/players/" + seat.role, { name: name, id: id }).then(function () {
+        me = blankMe();
+        me.kind = "class";
+        me.code = code;
+        me.game = seat.game;
+        me.role = seat.role;
+        me.id = id;
+        me.name = name;
+        status("");
+        openGame(online);
+      }, function (err) {
+        if (triesLeft > 1) return takeClassSeat(code, games, name, triesLeft - 1);
+        throw err;
+      });
+    });
   }
 
-  /* ----- Lobby ----- */
+  function startPractice() {
+    me = blankMe();
+    me.kind = "practice";
+    me.name = "You";
+    me.role = $("practiceRole").value;
+    var g = { created: Date.now(), hostId: me.id, hostName: me.name, players: {} };
+    g.players[me.role] = { name: me.name, id: me.id };
+    var local = LocalStore();
+    status("");
+    local.put(gamePath(), g).then(function () { return local.update(gamePath(), startUpdate(g)); }).then(function () { openGame(local); });
+  }
+
+  /* ----- Waiting room ----- */
 
   function renderLobby(g) {
     show("lobby");
-    $("lobbyCode").textContent = me.code;
-    $("shareLink").value = location.origin + location.pathname + "?game=" + me.code;
-    var players = g.players || {};
+    var inClass = me.kind === "class", players = g.players || {}, taken = seatsTaken(g);
+    $("lobbyTitle").textContent = gameTitle();
+    $("shareBox").hidden = inClass;
+    $("shareLink").value = location.origin + location.pathname + "?code=" + me.code;
     $("roleList").innerHTML = ROLES.map(function (r) {
       var p = players[r.key], who;
       if (p && p.id === me.id) who = "<strong>You</strong>";
       else if (p) who = esc(p.name);
+      else if (inClass) who = '<span class="bg-hint">Waiting for a student…</span>';
       else who = '<button type="button" class="btn" data-role="' + r.key + '">Take this role</button>';
-      return '<li class="bg-card bg-role"><div><h3>' + r.name + "</h3><p class=\"bg-hint\">" + r.desc + "</p></div><div>" + who + "</div></li>";
+      return '<li class="bg-card bg-role"><div><h3>' + r.name + '</h3><p class="bg-hint">' + r.desc + "</p></div><div>" + who + "</div></li>";
     }).join("");
 
-    var isHost = g.hostId === me.id, count = Object.keys(players).length;
+    var isHost = !inClass && g.hostId === me.id;
     $("startBtn").hidden = !isHost;
-    $("startBtn").disabled = count === 0;
-    var note = me.role ? "" : "Choose the business you want to run. ";
-    note += isHost
-      ? "Press Start when everyone has joined. Any business without a player is run by the computer."
-      : "Waiting for " + g.hostName + " to start the game.";
+    $("startBtn").disabled = taken === 0;
+    var note;
+    if (inClass) {
+      note = "You are the " + roleName(me.role) + ". The game starts by itself when all 4 seats are filled (" + taken + " of 4 so far).";
+    } else {
+      note = me.role ? "" : "Choose the business you want to run. ";
+      note += isHost
+        ? "Press Start when everyone has joined. Any business without a player is run by the computer."
+        : "Waiting for " + g.hostName + " to start the game.";
+    }
     $("lobbyNote").textContent = note;
   }
 
@@ -398,9 +576,10 @@
       var update = {};
       if (me.role) update["players/" + me.role] = null;
       update["players/" + key] = { name: me.name, id: me.id };
+      var before = me.role;
       me.role = key;
       save();
-      store.update(me.code, update).catch(function (err) { status(err.message); });
+      store.update(gamePath(), update).catch(function (err) { me.role = before; save(); status(err.message); });
     });
     $("copyLink").addEventListener("click", function () {
       var input = $("shareLink");
@@ -410,16 +589,13 @@
       } catch (err) { input.select(); $("copied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; }
     });
     $("startBtn").addEventListener("click", function () {
-      var cpu = {}, players = game.players || {};
-      ROLES.forEach(function (r) { if (!players[r.key]) cpu[r.key] = true; });
-      store.update(me.code, { status: "playing", week: 1, cpu: cpu, state: beginWeek(initialState(), 1) })
-        .catch(function (err) { status(err.message); });
+      store.update(gamePath(), startUpdate(game)).catch(function (err) { status(err.message); });
     });
     $("leaveLobby").addEventListener("click", function () {
       if (me.role && game && game.players && game.players[me.role] && game.players[me.role].id === me.id) {
         var update = {};
         update["players/" + me.role] = null;
-        store.update(me.code, update);
+        store.update(gamePath(), update);
       }
       leave();
     });
@@ -429,18 +605,17 @@
 
   function renderPlay(g) {
     show("play");
+    $("weekLabel").textContent = (me.kind === "class" ? "Game " + me.game + " · " : "") + "Week " + g.week + " of " + g.weeks;
     if (!me.role) {
-      $("playTitle").textContent = "Game " + me.code;
-      $("weekLabel").textContent = "Week " + g.week + " of " + g.weeks;
+      $("playTitle").textContent = gameTitle();
       $("spectator").hidden = false;
       ["numbers", "orderForm", "cpuNote", "myHistoryBox"].forEach(function (id) { $(id).hidden = true; });
       renderWaiting(g);
       return;
     }
     $("spectator").hidden = true;
-    var r = ROLES[roleIndex(me.role)], b = g.state[me.role], i = roleIndex(me.role);
+    var i = roleIndex(me.role), r = ROLES[i], b = g.state[me.role];
     $("playTitle").textContent = "You are the " + r.name;
-    $("weekLabel").textContent = "Week " + g.week + " of " + g.weeks;
 
     var asker = i === 0 ? "Shoppers want" : "The " + ROLES[i - 1].name + " ordered";
     var items = [
@@ -507,7 +682,7 @@
       if (!isFinite(n) || n < 0 || n > 999 || $("orderInput").value === "") { status("Please enter a whole number from 0 to 999."); return; }
       status("");
       $("orderForm").hidden = true; // stops a double send while the order is on its way
-      store.put(me.code, "orders/w" + game.week + "/" + me.role, n).catch(function (err) {
+      store.put(gamePath() + "/orders/w" + game.week + "/" + me.role, n).catch(function (err) {
         $("orderForm").hidden = false;
         status(err.message);
       });
@@ -515,17 +690,17 @@
     $("autoBtn").addEventListener("click", function () {
       var update = {};
       waitingFor(game).forEach(function (r) { if (r.key !== me.role) update["cpu/" + r.key] = true; });
-      store.update(me.code, update).catch(function (err) { status(err.message); });
+      store.update(gamePath(), update).catch(function (err) { status(err.message); });
     });
     $("takeBack").addEventListener("click", function () {
       var update = {};
       update["cpu/" + me.role] = null;
-      store.update(me.code, update).catch(function (err) { status(err.message); });
+      store.update(gamePath(), update).catch(function (err) { status(err.message); });
     });
     $("leavePlay").addEventListener("click", leave);
   }
 
-  /* ----- Results ----- */
+  /* ----- Score card and results ----- */
 
   function seriesFrom(g) {
     var weeks = [], demand = [], orders = {};
@@ -540,45 +715,24 @@
     return { weeks: weeks, demand: demand, orders: orders };
   }
 
-  // The people who played, e.g. "Ana, Bo & Cy + computer".
-  function teamLabel(g) {
-    var names = ROLES.filter(function (r) { return g.players && g.players[r.key]; }).map(function (r) { return g.players[r.key].name; });
-    var label = names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names[names.length - 1] : names[0] || "Computer";
-    return names.length < ROLES.length ? label + " + computer" : label;
-  }
-
-  var scoredGame = "";
+  function myId() { return me.kind === "class" ? "g" + me.game : me.code; }
 
   function renderResults(g) {
     show("results");
-    if (!me.practice) forget(); // the game is over, so this device shouldn't offer to go back to it
-    var team = teamCost(g.state), pts = points(team), m = medal(pts);
-    $("costTable").innerHTML = "<thead><tr><th>Business</th><th>Played by</th><th>Total cost</th></tr></thead><tbody>" +
-      ROLES.map(function (r) {
-        return "<tr" + (r.key === me.role ? ' class="bg-me"' : "") + "><td>" + r.name + "</td><td>" + esc(playerName(g, r.key)) + "</td><td>" + money(g.state[r.key].total) + "</td></tr>";
-      }).join("") + "</tbody>";
+    if (me.kind !== "practice") forget(); // the game is over, so this device shouldn't offer to go back to it
+    var mine = entryFor(g, myId(), me.kind === "class" ? "Game " + me.game : "");
 
-    // Score card
-    $("scoreEyebrow").textContent = me.practice ? "Score card · Practice game" : "Score card · Game " + me.code;
-    $("scoreTeam").textContent = "Team: " + teamLabel(g);
-    $("teamTotal").textContent = money(team);
-    $("scoreBadge").textContent = m.name;
-    $("scoreBadge").setAttribute("data-level", m.level);
-    var diff = Math.round(Math.abs(1 - team / COMPUTER_COST) * 100);
-    $("scoreCompare").textContent = team <= COMPUTER_COST
-      ? "Your team spent " + diff + "% less than a team of computer players (" + money(COMPUTER_COST) + ")."
-      : "Your team spent " + diff + "% more than a team of computer players (" + money(COMPUTER_COST) + "). Try again!";
-    var humans = ROLES.filter(function (r) { return g.players && g.players[r.key]; });
-    var best = humans.sort(function (a, b) { return g.state[a.key].total - g.state[b.key].total; })[0];
-    $("bestPlayer").textContent = best
-      ? g.players[best.key].name + " (" + best.name + ", " + money(g.state[best.key].total) + ")"
-      : "—";
-    if (scoredGame !== me.code) {
-      scoredGame = me.code;
-      window.scrollTo(0, 0);
-      countUp($("scorePoints"), pts);
-      loadBoard(g, team, pts);
-    }
+    $("scoreEyebrow").textContent = "Score card · " + gameTitle();
+    $("scoreTeam").textContent = "Team: " + teamText({ names: mine.names });
+    $("teamTotal").textContent = money(mine.cost);
+    var diff = Math.round(Math.abs(1 - mine.cost / COMPUTER_COST) * 100);
+    $("scoreCompare").textContent = mine.cost <= COMPUTER_COST
+      ? "That's " + diff + "% less than a team of computer players (" + money(COMPUTER_COST) + ")."
+      : "That's " + diff + "% more than a team of computer players (" + money(COMPUTER_COST) + "). Try again!";
+    $("roleCosts").innerHTML = ROLES.map(function (r) {
+      return "<div" + (r.key === me.role ? ' class="bg-mine"' : "") + "><dt>" + r.name + (r.key === me.role ? " (you)" : "") + "</dt>" +
+        '<dd class="bg-cost">' + money(mine.roles[r.key]) + "</dd><dd>" + esc(mine.names[r.key]) + '</dd><dd class="bg-hint" id="rank-' + r.key + '"></dd></div>';
+    }).join("");
 
     var s = seriesFrom(g);
     $("orderTable").innerHTML = "<thead><tr><th>Week</th><th>Shoppers</th>" + ROLES.map(function (r) { return "<th>" + r.name + "</th>"; }).join("") + "</tr></thead><tbody>" +
@@ -586,86 +740,92 @@
         return "<tr><td>" + w + "</td><td>" + s.demand[i] + "</td>" + ROLES.map(function (r) { return "<td>" + s.orders[r.key][i] + "</td>"; }).join("") + "</tr>";
       }).join("") + "</tbody>";
     drawChart(s);
-
-    var peaks = ROLES.map(function (r) { return Math.max.apply(null, s.orders[r.key]); });
+    var peaks = ROLES.map(function (r) { return Math.max.apply(null, s.orders[r.key]); }), top = Math.max.apply(null, peaks);
     $("peakNote").textContent = "Shoppers never wanted more than 8 cases a week, but the biggest single order was " +
-      Math.max.apply(null, peaks) + " cases, placed by the " + ROLES[peaks.indexOf(Math.max.apply(null, peaks))].name + ".";
-  }
+      top + " cases, placed by the " + ROLES[peaks.indexOf(top)].name + ".";
 
-  // Points count up from 0 when the score card appears (shown straight away if the viewer prefers less motion).
-  function countUp(el, target) {
-    var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (still || !window.requestAnimationFrame) { el.textContent = target; return; }
-    var start = null;
-    function step(t) {
-      if (start === null) start = t;
-      var k = Math.min(1, (t - start) / 900);
-      el.textContent = Math.round(target * (1 - Math.pow(1 - k, 3)));
-      if (k < 1) requestAnimationFrame(step);
+    if (scoredGame !== gamePath()) {
+      scoredGame = gamePath();
+      window.scrollTo(0, 0);
+      loadRanking(g, mine);
     }
-    el.textContent = "0";
-    requestAnimationFrame(step);
   }
 
-  function loadBoard(g, cost, pts) {
-    $("boardBox").hidden = me.practice;
-    $("highBox").hidden = me.practice;
-    if (me.practice) {
+  function loadRanking(g, mine) {
+    var practice = me.kind === "practice";
+    $("rankingBox").hidden = practice;
+    $("refreshRank").hidden = me.kind !== "class";
+    $("rankingTitle").textContent = me.kind === "class" ? "Class ranking" : "Top teams";
+    $("rankingHint").textContent = me.kind === "class"
+      ? "Teams in this class that have finished, lowest team cost first. Other games may still be playing: press Update to refresh."
+      : "Quick games from everyone who has played, lowest team cost first.";
+    if (practice) {
       var best = null;
-      try { best = JSON.parse(localStorage.getItem("beerGameBest")); } catch (e) { /* no saved best */ }
+      try { best = JSON.parse(localStorage.getItem(BEST_KEY)); } catch (e) { /* no saved best */ }
       $("rankLabel").textContent = "Personal best";
-      if (!best || pts > best.points) {
-        $("scoreRank").textContent = "New personal best!";
-        try { localStorage.setItem("beerGameBest", JSON.stringify({ points: pts, cost: cost })); } catch (e) { /* not saved */ }
+      if (!best || mine.cost < best.cost) {
+        $("teamRank").textContent = "New personal best!";
+        try { localStorage.setItem(BEST_KEY, JSON.stringify({ cost: mine.cost })); } catch (e) { /* not saved */ }
       } else {
-        $("scoreRank").textContent = best.points + " points";
+        $("teamRank").textContent = money(best.cost);
       }
+      $("bestTeamBox").hidden = true;
       return;
     }
-    $("rankLabel").textContent = "Rank";
-    $("scoreRank").textContent = "…";
-    $("highScore").textContent = "…";
-    var entry = { team: teamLabel(g), cost: cost, points: pts, date: Date.now() };
-    // The first player in the chain saves the score. Everyone else waits a moment and only saves it
-    // if it still isn't there (for example, that player closed the page). The database keeps only one.
-    var first = ROLES.filter(function (r) { return g.players && g.players[r.key]; })[0];
-    var saver = first && g.players[first.key].id === me.id;
-    function saveIfMissing(all) {
-      if (all && all[me.code]) return all;
-      return store.saveScore(me.code, entry).catch(function () {}).then(function () { return store.readScores(); });
-    }
-    var ready = saver
-      ? store.readScores().then(saveIfMissing)
-      : new Promise(function (done) { setTimeout(done, 3000); }).then(store.readScores).then(saveIfMissing);
-    ready.then(function (all) {
-      renderBoard(all || {});
+    $("rankLabel").textContent = "Team rank";
+    $("bestTeamBox").hidden = false;
+    $("teamRank").textContent = "…";
+    $("bestTeam").textContent = "…";
+    var loading = me.kind === "class"
+      ? online.get("beerSessions/" + me.code).then(classEntries)
+      : saveQuickScore(g, mine);
+    loading.then(function (list) {
+      if (!list.some(function (e) { return e.id === mine.id; })) list.push(mine);
+      showRanking(list, mine);
     }).catch(function (err) {
-      $("scoreRank").textContent = "—";
-      $("highScore").textContent = "—";
-      $("boardTable").innerHTML = "<tbody><tr><td>Couldn't load the top teams. " + esc(err.message) + "</td></tr></tbody>";
+      $("teamRank").textContent = "—";
+      $("bestTeam").textContent = "—";
+      $("rankTable").innerHTML = "<tbody><tr><td>Couldn't load the ranking. " + esc(err.message) + "</td></tr></tbody>";
     });
   }
 
-  function renderBoard(all) {
-    var list = Object.keys(all).map(function (code) { var e = all[code]; e.code = code; return e; })
-      .filter(function (e) { return typeof e.cost === "number" && typeof e.points === "number"; })
-      .sort(function (a, b) { return a.cost - b.cost || a.date - b.date; });
-    var mine = -1;
-    list.forEach(function (e, i) { if (e.code === me.code) mine = i; });
-    $("scoreRank").textContent = mine >= 0 ? "#" + (mine + 1) + " of " + list.length + " teams" : "—";
-    $("highScore").textContent = list.length ? (mine === 0 ? "You have it!" : list[0].points + " points") : "—";
-
-    function row(e, i) {
-      var date = new Date(e.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-      return "<tr" + (i === mine ? ' class="bg-me"' : "") + "><td>" + (i + 1) + "</td><td>" + esc(e.team) + (i === mine ? " (you)" : "") +
-        "</td><td>" + e.points + "</td><td>" + money(e.cost) + "</td><td>" + date + "</td></tr>";
+  // A quick game's result is saved once under beerScores. The first player in the chain saves it; everyone
+  // else waits a moment and only saves it if it still isn't there. The database keeps only one copy.
+  function saveQuickScore(g, mine) {
+    var first = ROLES.filter(function (r) { return g.players && g.players[r.key]; })[0];
+    var saver = first && g.players[first.key].id === me.id;
+    var entry = { cost: mine.cost, roles: mine.roles, names: mine.names, date: mine.date };
+    function readAll() { return online.get("beerScores"); }
+    function saveIfMissing(all) {
+      if (all && all[me.code]) return all;
+      return online.put("beerScores/" + me.code, entry).catch(function () {}).then(readAll);
     }
-    var rows = list.slice(0, 10).map(row);
-    if (mine >= 10) rows.push('<tr><td colspan="5">…</td></tr>', row(list[mine], mine));
-    $("boardTable").innerHTML = "<thead><tr><th>#</th><th>Team</th><th>Points</th><th>Cost</th><th>Date</th></tr></thead><tbody>" + rows.join("") + "</tbody>";
+    var ready = saver ? readAll().then(saveIfMissing)
+      : new Promise(function (done) { setTimeout(done, 3000); }).then(readAll).then(saveIfMissing);
+    return ready.then(function (all) {
+      all = all || {};
+      return Object.keys(all).map(function (code) { var e = all[code]; e.id = code; e.label = ""; return e; })
+        .filter(function (e) { return typeof e.cost === "number" && e.roles && e.names; });
+    });
   }
 
-  /* Line chart of orders per week: one line per business, plus shoppers' demand as a dashed line. */
+  function showRanking(list, mine) {
+    var sorted = byCost(list), rank = 0, finished = me.kind === "class" ? " finished teams" : " teams";
+    sorted.forEach(function (e, i) { if (e.id === mine.id) rank = i + 1; });
+    $("teamRank").textContent = "#" + rank + " of " + sorted.length + finished;
+    $("bestTeam").textContent = rank === 1 ? "That's you!" : money(sorted[0].cost) + " · " + (sorted[0].label || teamText(sorted[0]));
+    ROLES.forEach(function (r) {
+      var el = $("rank-" + r.key);
+      if (mine.names[r.key] === "Computer") { el.textContent = "Played by the computer"; return; }
+      var list = byRole(sorted, r.key), pos = 0;
+      list.forEach(function (e, i) { if (e.id === mine.id) pos = i + 1; });
+      el.textContent = "#" + pos + " of " + list.length + " " + r.plural;
+    });
+    $("rankTable").innerHTML = rankingTable(sorted.slice(0, me.kind === "class" ? MAX_GAMES : 10), mine.id);
+    $("bestTable").innerHTML = bestByRoleTable(sorted);
+  }
+
+  // Line chart of orders per week: one line per business, plus shoppers' demand as a dashed line.
   function drawChart(s) {
     var box = $("chart"), svgNS = "http://www.w3.org/2000/svg";
     var W = Math.max(280, box.clientWidth), H = W < 500 ? 220 : 280;
@@ -718,7 +878,10 @@
   function setupResults() {
     $("legend").innerHTML = '<span class="bg-key bg-key-demand">Shoppers</span>' +
       ROLES.map(function (r) { return '<span class="bg-key" style="--c:var(--s-' + r.key + ')">' + r.name + "</span>"; }).join("");
-    $("againBtn").addEventListener("click", function () { scoredGame = ""; leave(); });
+    $("againBtn").addEventListener("click", leave);
+    $("refreshRank").addEventListener("click", function () {
+      if (game) loadRanking(game, entryFor(game, myId(), "Game " + me.game));
+    });
     var timer;
     window.addEventListener("resize", function () {
       clearTimeout(timer);
@@ -726,9 +889,91 @@
     });
   }
 
+  /* ----- Lecturer's board ----- */
+
+  function openTeacher() {
+    stop();
+    store = online;
+    save();
+    stopWatching = store.watch("beerSessions/" + me.code, onSession, status);
+  }
+
+  function onSession(s) {
+    if (!s || !s.info) {
+      var code = me.code;
+      leave();
+      status("No class session with the code " + code + " was found.");
+      return;
+    }
+    session = s;
+    renderTeacher(s);
+  }
+
+  function renderTeacher(s) {
+    show("teacher");
+    var n = s.info.games, games = s.games || {}, students = 0, playing = 0, done = 0, html = "";
+    $("teacherTitle").textContent = "Class session " + me.code;
+    $("teacherCode").textContent = me.code;
+    $("teacherLink").value = location.origin + location.pathname + "?code=" + me.code;
+    for (var i = 1; i <= n; i++) {
+      var g = games["g" + i] || {}, players = g.players || {}, st = g.status || "lobby", taken = seatsTaken(g);
+      students += taken;
+      if (st === "playing") playing++;
+      if (st === "done") done++;
+      var label = st === "lobby" ? (taken ? "Waiting · " + taken + " of 4 seats" : "Empty")
+        : st === "playing" ? "Playing · week " + g.week + " of " + g.weeks : "Finished";
+      html += '<li class="bg-card bg-game" data-status="' + st + '"><div class="bg-game-head"><h3>Game ' + i + '</h3><span class="bg-tag">' + label + "</span></div>" +
+        '<ul class="bg-seats">' + ROLES.map(function (r) {
+          var p = players[r.key], who;
+          if (p) who = esc(p.name) + (g.cpu && g.cpu[r.key] ? ' <span class="bg-hint">(computer playing)</span>' : "");
+          else who = '<span class="bg-hint">' + (st === "lobby" ? "Empty seat" : "Computer") + "</span>";
+          return "<li><span class=\"bg-seat-role\">" + r.name + "</span><span class=\"bg-seat-name\">" + who + "</span>" +
+            (p ? '<button type="button" class="bg-x" data-remove="' + i + "/" + r.key + '" aria-label="Remove ' + esc(p.name) + " from Game " + i + '">×</button>' : "") + "</li>";
+        }).join("") + "</ul>" +
+        (g.state ? '<p class="bg-hint">Team cost ' + (st === "done" ? "" : "so far ") + "<strong>" + money(teamCost(g.state)) + "</strong></p>" : "") +
+        (st === "lobby" && taken > 0 && taken < ROLES.length ? '<button type="button" class="btn" data-start="' + i + '">Start now with computer players</button>' : "") +
+        "</li>";
+    }
+    $("gameGrid").innerHTML = html;
+    $("teacherCounts").textContent = students + " student" + (students === 1 ? "" : "s") + " seated · " + playing + " playing · " +
+      done + " finished · " + n + " games (room for " + n * 4 + " students)";
+    var list = classEntries(s);
+    $("teacherRanking").hidden = !list.length;
+    if (list.length) {
+      $("teacherRankTable").innerHTML = rankingTable(list, "");
+      $("teacherBestTable").innerHTML = bestByRoleTable(list);
+    }
+  }
+
+  function setupTeacher() {
+    $("gameGrid").addEventListener("click", function (e) {
+      var remove = e.target.getAttribute("data-remove"), start = e.target.getAttribute("data-start");
+      var base = "beerSessions/" + me.code + "/games/g";
+      if (remove) {
+        var parts = remove.split("/"), g = session.games["g" + parts[0]], p = g.players[parts[1]];
+        if (!window.confirm("Remove " + p.name + " from Game " + parts[0] + "? They can join again with the class code and get the next free seat.")) return;
+        var update = {};
+        update["players/" + parts[1]] = null;
+        store.update(base + parts[0], update).catch(function (err) { status(err.message); });
+      }
+      if (start) {
+        store.update(base + start, startUpdate(session.games["g" + start])).catch(function (err) { status(err.message); });
+      }
+    });
+    $("copyTeacherLink").addEventListener("click", function () {
+      var input = $("teacherLink");
+      var done = function () { $("teacherCopied").textContent = "Link copied"; };
+      try {
+        navigator.clipboard.writeText(input.value).then(done, function () { input.select(); $("teacherCopied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; });
+      } catch (err) { input.select(); $("teacherCopied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; }
+    });
+    $("leaveTeacher").addEventListener("click", leave);
+  }
+
   setupIntro();
   setupLobby();
   setupPlay();
   setupResults();
+  setupTeacher();
   showIntro();
 })();
