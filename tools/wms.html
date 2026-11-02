@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Warehouse Practice (WMS) — Warehousing Tools</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/wms.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="site-name" href="../index.html">Warehousing Tools</a>
+      <button type="button" class="theme-toggle">Dark theme</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <a class="back-link" href="../index.html">← All tools</a>
+
+    <p id="status" class="wm-status" role="status" aria-live="polite" hidden></p>
+
+    <!-- Start screen -->
+    <section id="intro" class="wm-stack">
+      <h1>Warehouse Practice (WMS)</h1>
+      <p class="intro">
+        A WMS (warehouse management system) is the computer system a warehouse uses to track every
+        carton that comes in and goes out. Here, six students share one practice warehouse. Each of
+        you receives 3 deliveries and ships 3 store orders, and everyone sees the stock change live.
+      </p>
+
+      <div class="wm-choices">
+        <form id="studentForm" class="wm-card">
+          <h2>Students: join your class</h2>
+          <p class="wm-hint">Enter the code from your lecturer. You'll be given a warehouse and your orders.</p>
+          <label class="wm-field">Class code
+            <input type="text" id="sCode" maxlength="6" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. K7Q2PX">
+          </label>
+          <label class="wm-field">Your name or student number
+            <input type="text" id="sName" maxlength="40" required autocomplete="off">
+          </label>
+          <p class="wm-hint">Use the same name each day so your work stays together.</p>
+          <button type="submit" class="btn btn-primary">Join</button>
+        </form>
+
+        <form id="teacherForm" class="wm-card">
+          <h2>Lecturers: start a class</h2>
+          <p class="wm-hint">Students can only join and work between the first and last lesson day.</p>
+          <label class="wm-field">Your name
+            <input type="text" id="tName" maxlength="40" required autocomplete="name">
+          </label>
+          <label class="wm-field">Number of warehouses (6 students each)
+            <select id="tWarehouses"></select>
+          </label>
+          <div class="wm-two">
+            <label class="wm-field">First lesson day
+              <input type="date" id="tFirst" required>
+            </label>
+            <label class="wm-field">Last lesson day
+              <input type="date" id="tLast" required>
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary">Start class</button>
+        </form>
+      </div>
+
+      <div id="rejoin" class="wm-card" hidden>
+        <p id="rejoinText"></p>
+        <div class="wm-row">
+          <button type="button" id="rejoinBtn" class="btn btn-primary">Go back</button>
+          <button type="button" id="forgetBtn" class="btn">Forget it</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Student's workspace -->
+    <section id="student" class="wm-stack" hidden>
+      <div>
+        <h1 id="sTitle"></h1>
+        <p id="sSub" class="wm-hint"></p>
+        <p id="sOpen" class="wm-hint"></p>
+      </div>
+      <p id="sProgress" class="wm-progress"></p>
+      <p id="sAllDone" class="wm-card wm-done" hidden>✓ All your orders are done. Well done! You can keep watching the warehouse's stock change.</p>
+
+      <div class="wm-work">
+        <div class="wm-stack">
+          <h2>Your orders</h2>
+          <ul id="orderList" class="wm-orders"></ul>
+
+          <div id="orderPanel" class="wm-card" hidden>
+            <h3 id="oTitle"></h3>
+            <p id="oHelp" class="wm-hint"></p>
+            <div class="wm-scroll"><table id="oLines" class="wm-table"></table></div>
+            <form id="lineForm">
+              <p id="lineLabel" class="wm-strong"></p>
+              <div class="wm-two">
+                <label class="wm-field">SKU code
+                  <input type="text" id="lineSku" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. BEV-101">
+                </label>
+                <label class="wm-field">Quantity (cartons)
+                  <input type="number" id="lineQty" required min="0" max="999" step="1" inputmode="numeric">
+                </label>
+              </div>
+              <button type="submit" id="postBtn" class="btn btn-primary">Post</button>
+            </form>
+            <p id="oDone" class="wm-strong" hidden>✓ This order is done. Choose another one.</p>
+            <p id="lineResult" class="wm-result" role="status" aria-live="polite" hidden></p>
+          </div>
+        </div>
+
+        <div class="wm-stack">
+          <h2>Stock in your warehouse</h2>
+          <p class="wm-hint">Updates live as you and your classmates work. "On hand" is the number of cartons in the bin.</p>
+          <div class="wm-scroll"><table id="stockTable" class="wm-table"></table></div>
+          <h2>Latest activity</h2>
+          <ul id="activity" class="wm-activity"></ul>
+        </div>
+      </div>
+      <div><button type="button" id="leaveStudent" class="btn">Leave for now</button></div>
+    </section>
+
+    <!-- Lecturer's board -->
+    <section id="teacher" class="wm-stack" hidden>
+      <h1 id="tTitle"></h1>
+      <div class="wm-card">
+        <p>Students open this page, choose <strong>Students: join your class</strong> and enter:</p>
+        <p id="tCode" class="wm-code wm-code-big"></p>
+        <div class="wm-row">
+          <input type="text" id="tLink" class="wm-link" readonly aria-label="Link for students">
+          <button type="button" id="tCopy" class="btn">Copy link</button>
+          <span id="tCopied" class="wm-hint" aria-live="polite"></span>
+        </div>
+        <p id="tOpen" class="wm-strong"></p>
+        <p class="wm-hint">
+          Students are placed in order: Warehouse 1 places 1–6, then Warehouse 2, and so on. Each place has its own
+          3 receiving and 3 shipping orders (12 lines), the same in every warehouse. A student who joins again with
+          the same name gets their place back.
+        </p>
+      </div>
+      <p id="tCounts" class="wm-strong"></p>
+      <ul id="houseGrid" class="wm-houses"></ul>
+      <div class="wm-row">
+        <button type="button" id="tSummary" class="btn">Download student summary (CSV)</button>
+        <button type="button" id="tLog" class="btn">Download all transactions (CSV)</button>
+      </div>
+      <p class="wm-hint">The downloads open in Google Sheets or Excel, for grading. Download them before deleting the class.</p>
+      <div class="wm-row">
+        <button type="button" id="tClose" class="btn">Close this board</button>
+        <button type="button" id="tDelete" class="btn btn-danger" hidden>Delete this class</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="../js/wms.js"></script>
+</body>
+</html>

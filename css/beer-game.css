@@ -1,4 +1,4 @@
-/* Beer Game: uses the shared colors from style.css; only adds buttons, forms, cards and the chart. */
+/* Beer Game: uses the shared colors and buttons from style.css; adds forms, cards and the chart. */
 
 /* Chart line colors, one per business (checked for color-blind safety in both themes). */
 :root {
@@ -8,25 +8,11 @@
   --s-factory: #eda100;
 }
 
-/* Buttons that remove things for good. */
-:root {
-  --danger: #b3261e;
-}
-
-:root[data-theme="dark"] {
-  --danger: #ff8a80;
-}
-
 :root[data-theme="dark"] {
   --s-retailer: #3987e5;
   --s-wholesaler: #d95926;
   --s-distributor: #199e70;
   --s-factory: #c98500;
-}
-
-/* Keep hidden screens and panels hidden, even when they use grid or flex layouts. */
-[hidden] {
-  display: none !important;
 }
 
 .bg-stack {
@@ -49,49 +35,7 @@
   margin-bottom: 0;
 }
 
-/* Buttons and fields */
-.btn {
-  min-height: 44px;
-  padding: 0 18px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn:hover {
-  background: var(--surface);
-}
-
-.btn-primary {
-  background: var(--text);
-  border-color: var(--text);
-  color: var(--bg);
-}
-
-.btn-primary:hover {
-  background: var(--text-muted);
-  border-color: var(--text-muted);
-}
-
-.btn.bg-danger {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.btn.bg-danger:hover {
-  background: var(--danger);
-  color: var(--bg);
-}
-
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
+/* Fields (buttons are shared, in style.css) */
 .bg-field {
   display: grid;
   gap: 4px;

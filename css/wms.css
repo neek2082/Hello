@@ -1,0 +1,307 @@
+/* Warehouse Practice (WMS): uses the shared colors and buttons from style.css. */
+
+.wm-stack {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.wm-stack h1,
+.wm-stack h2,
+.wm-stack h3,
+.wm-stack p {
+  margin: 0;
+}
+
+.wm-stack h2 {
+  font-size: 1.25rem;
+}
+
+.wm-stack .intro {
+  margin-bottom: 0;
+}
+
+.wm-hint {
+  color: var(--text-muted);
+}
+
+.wm-strong {
+  font-weight: 600;
+}
+
+.wm-status {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--surface);
+  margin: 0 0 16px;
+}
+
+/* Cards and forms */
+.wm-choices {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .wm-choices {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.wm-card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  margin: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.wm-card h2,
+.wm-card h3 {
+  font-size: 1.125rem;
+}
+
+.wm-field {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.wm-stack input[type="text"],
+.wm-stack input[type="number"],
+.wm-stack input[type="date"],
+.wm-stack select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.wm-two {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 600px) {
+  .wm-two {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+#lineForm {
+  display: grid;
+  gap: 12px;
+}
+
+#lineForm .btn {
+  justify-self: start;
+}
+
+.wm-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.wm-row .wm-link {
+  flex: 1 1 240px;
+  width: auto;
+}
+
+/* SKU codes and bin locations stay on one line, so "BEV-101" never splits at the hyphen. */
+.wm-code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  white-space: nowrap;
+}
+
+.wm-code-big {
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+}
+
+/* Student */
+.wm-progress {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.wm-done {
+  border-width: 2px;
+  border-color: var(--text);
+  font-weight: 600;
+}
+
+.wm-work {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media (min-width: 900px) {
+  .wm-work {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.wm-orders {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wm-order {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wm-order:hover {
+  background: var(--surface);
+}
+
+/* The chosen order: thicker border, not just a color change. */
+.wm-order.wm-selected {
+  border: 2px solid var(--text);
+  padding: 9px 13px;
+  background: var(--surface);
+}
+
+.wm-order-id {
+  grid-row: span 2;
+  align-self: center;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-weight: 700;
+}
+
+.wm-order-type {
+  font-weight: 600;
+}
+
+.wm-order-state {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.wm-order-state[data-done="true"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.wm-result {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--bg);
+  font-weight: 600;
+}
+
+.wm-low {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Tables */
+.wm-scroll {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.wm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.wm-table th,
+.wm-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.wm-table thead th {
+  font-size: 0.875rem;
+}
+
+.wm-table td:last-child,
+.wm-table th:last-child {
+  white-space: nowrap;
+}
+
+.wm-table .wm-current td {
+  font-weight: 700;
+  background: var(--surface);
+}
+
+.wm-activity {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9375rem;
+}
+
+.wm-time {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lecturer */
+.wm-houses {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1100px) {
+  .wm-houses {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.wm-house {
+  min-width: 0;
+}
+
+.wm-more summary {
+  padding: 8px 0;
+  font-weight: 600;
+  cursor: pointer;
+}

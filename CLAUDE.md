@@ -5,17 +5,17 @@
 - Plain HTML, CSS, and JavaScript only.
 - No frameworks or libraries (no React, Vue, Tailwind, etc.).
 - No build step: files are opened or served exactly as written.
-- One exception, approved for the Beer Game only: online games are kept in a
-  free Firebase Realtime Database (Spark plan). It is reached with plain web
-  requests (`fetch` and `EventSource`), not Google's code library. Its address
-  is `DB_URL` at the top of `js/beer-game.js`; when that is empty, only
-  practice mode works.
+- One exception, approved for the Beer Game and the WMS only: online data is
+  kept in a free Firebase Realtime Database (Spark plan). It is reached with
+  plain web requests (`fetch` and `EventSource`), not Google's code library.
+  Its address is `DB_URL` at the top of `js/beer-game.js` and `js/wms.js`;
+  when the Beer Game's is empty, only practice mode works.
 
 ## Project Structure
 
 - `index.html`: portal homepage
-- `tools/`: one HTML page per tool (`site-chooser-plus.html`, `beer-game.html`)
-- `css/style.css`: shared styles, including light/dark colors
+- `tools/`: one HTML page per tool (`site-chooser-plus.html`, `beer-game.html`, `wms.html`)
+- `css/style.css`: shared styles, including light/dark colors and buttons (`.btn`)
 - `css/<tool-name>.css`: optional styles for one tool, with its own light/dark colors
 - `js/theme.js`: shared theme toggle
 - `js/<tool-name>.js`: one script per tool
@@ -83,6 +83,23 @@ warehousing and supply chain tools. Plain language throughout.
    - [x] Switch on online play: Firebase project `beer-game-data`,
      Realtime Database in Singapore (asia-southeast1), set as `DB_URL`
      in `js/beer-game.js`.
+   - [x] Third tool: "Warehouse Practice (WMS)" for a 4-day class lesson.
+     A lecturer starts a class (1–5 warehouses, 6 students each, up to 30)
+     with its first and last lesson day; students can only join and work
+     between those days (the database rules check this with the server's
+     clock). Students join with the class code and their name or student
+     number, are placed in order (Warehouse 1 places 1–6, then Warehouse 2),
+     and rejoin with the same name. Each place has its own 3 receiving and 3
+     shipping orders of 2 lines (12 lines), the same in every warehouse.
+     For each line the student types the SKU code and quantity; wrong
+     entries are logged as errors, and shipping needs enough stock.
+     Stock is never stored: each warehouse keeps an add-only transaction
+     log, and every screen replays it in order to get the stock, so two
+     students can't overwrite each other. The 11 SKUs and order sets are
+     sample data in editable lists at the top of `js/wms.js`. The
+     lecturer's board shows each warehouse's students, progress, errors,
+     stock and activity live, downloads a student summary and the full
+     transaction log as CSV, and can delete the class.
    - Ideas: "Shipping Time to Singapore": starting port + sea or air
      in, rough total days split into steps out; landed cost with GST;
      container fit check.
