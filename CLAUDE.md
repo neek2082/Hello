@@ -68,7 +68,11 @@ warehousing and supply chain tools. Plain language throughout.
        its 4 seats are full; the lecturer can start a part-full game with
        computer players, or remove a student (who rejoins for the next
        free seat). The lecturer's board shows every game, seat and cost
-       live, plus the class ranking.
+       live, plus the class ranking. It can download the results as a
+       CSV (opens in Google Sheets or Excel) and delete the class (only
+       on the lecturer's own device; finished students keep their score
+       card, waiting students are sent back to the start page). Closing
+       the board keeps the class, and the start page offers to go back.
      - **Play with friends**: one game, shared by code.
      - **Practice alone**: no database needed.
      Scoring is cost only (lower is better): a score card with the team

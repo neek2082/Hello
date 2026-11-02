@@ -231,7 +231,15 @@
         <h3>Best player in each business</h3>
         <div class="bg-scroll"><table id="teacherBestTable" class="bg-table bg-board"></table></div>
       </div>
-      <div><button type="button" id="leaveTeacher" class="btn">Close this board</button></div>
+      <div class="bg-row">
+        <button type="button" id="downloadClass" class="btn">Download results (CSV)</button>
+        <button type="button" id="leaveTeacher" class="btn">Close this board</button>
+        <button type="button" id="deleteClass" class="btn bg-danger" hidden>Delete this class</button>
+      </div>
+      <p class="bg-hint">
+        The download opens in Google Sheets or Excel: one row per game with each player's name and cost.
+        Closing the board keeps the class; you can come back to it from this page.
+      </p>
     </section>
   </main>
 

@@ -349,6 +349,13 @@
 
   function onGame(g) {
     var seat = g && g.players && me.role ? g.players[me.role] : null;
+    if (me.kind === "class" && !g) {
+      // The lecturer deleted the class. Anyone already looking at their score card keeps it.
+      if (game && game.status === "done") { if (stopWatching) stopWatching(); stopWatching = null; return; }
+      leave();
+      status("This class has ended: the lecturer deleted it.");
+      return;
+    }
     if (me.kind === "class" && (!seat || seat.id !== me.id)) {
       var where = gameTitle();
       leave();
@@ -936,6 +943,8 @@
     $("gameGrid").innerHTML = html;
     $("teacherCounts").textContent = students + " student" + (students === 1 ? "" : "s") + " seated · " + playing + " playing · " +
       done + " finished · " + n + " games (room for " + n * 4 + " students)";
+    $("deleteClass").hidden = s.info.hostId !== me.id;
+    $("downloadClass").disabled = students === 0;
     var list = classEntries(s);
     $("teacherRanking").hidden = !list.length;
     if (list.length) {
@@ -944,7 +953,64 @@
     }
   }
 
+  // One row per game: names and costs for each business, plus the team's rank among finished games.
+  // Opens in Google Sheets or Excel.
+  function classCsv(s) {
+    function cell(v) {
+      v = v === undefined || v === null ? "" : String(v);
+      return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    }
+    var ranks = {};
+    byCost(classEntries(s)).forEach(function (e, i) { ranks[e.id] = i + 1; });
+    var head = ["Game", "Status", "Week reached", "Team cost"];
+    ROLES.forEach(function (r) { head.push(r.name + " player", r.name + " cost"); });
+    head.push("Team rank");
+    var rows = [head], games = s.games || {};
+    for (var n = 1; n <= s.info.games; n++) {
+      var g = games["g" + n] || {}, st = g.status || "lobby";
+      var row = [n, st === "done" ? "Finished" : st === "playing" ? "Playing" : seatsTaken(g) ? "Waiting" : "Empty",
+        g.week || "", g.state ? teamCost(g.state).toFixed(2) : ""];
+      ROLES.forEach(function (r) {
+        var p = g.players && g.players[r.key];
+        row.push(p ? p.name : st === "lobby" ? "" : "Computer", g.state ? g.state[r.key].total.toFixed(2) : "");
+      });
+      row.push(ranks["g" + n] || "");
+      rows.push(row);
+    }
+    // The mark at the start (a "byte order mark") tells Excel the file is UTF-8, so accented names show correctly.
+    return "﻿" + rows.map(function (r) { return r.map(cell).join(","); }).join("\r\n") + "\r\n";
+  }
+
+  function downloadFile(name, text) {
+    var url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
   function setupTeacher() {
+    $("downloadClass").addEventListener("click", function () {
+      if (!session) return;
+      var day = new Date().toISOString().slice(0, 10);
+      downloadFile("beer-game-class-" + me.code + "-" + day + ".csv", classCsv(session));
+    });
+    $("deleteClass").addEventListener("click", function () {
+      var code = me.code;
+      if (!window.confirm("Delete class " + code + "? All its games, seats and ranking will be removed. This can't be undone.")) return;
+      if (stopWatching) stopWatching(); // stop listening first, so the board doesn't report the class as missing
+      stopWatching = null;
+      store.put("beerSessions/" + code, null).then(function () {
+        leave();
+        status("Class " + code + " was deleted.");
+      }, function (err) {
+        openTeacher();
+        status("Couldn't delete the class. " + err.message);
+      });
+    });
     $("gameGrid").addEventListener("click", function (e) {
       var remove = e.target.getAttribute("data-remove"), start = e.target.getAttribute("data-start");
       var base = "beerSessions/" + me.code + "/games/g";
@@ -966,7 +1032,13 @@
         navigator.clipboard.writeText(input.value).then(done, function () { input.select(); $("teacherCopied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; });
       } catch (err) { input.select(); $("teacherCopied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; }
     });
-    $("leaveTeacher").addEventListener("click", leave);
+    // Closing keeps the class saved on this device, so the start page offers to go back to it.
+    $("leaveTeacher").addEventListener("click", function () {
+      stop();
+      me = blankMe();
+      status("");
+      showIntro();
+    });
   }
 
   setupIntro();

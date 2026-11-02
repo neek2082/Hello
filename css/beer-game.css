@@ -8,6 +8,15 @@
   --s-factory: #eda100;
 }
 
+/* Buttons that remove things for good. */
+:root {
+  --danger: #b3261e;
+}
+
+:root[data-theme="dark"] {
+  --danger: #ff8a80;
+}
+
 :root[data-theme="dark"] {
   --s-retailer: #3987e5;
   --s-wholesaler: #d95926;
@@ -66,6 +75,16 @@
 .btn-primary:hover {
   background: var(--text-muted);
   border-color: var(--text-muted);
+}
+
+.btn.bg-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn.bg-danger:hover {
+  background: var(--danger);
+  color: var(--bg);
 }
 
 .btn:disabled {
