@@ -310,7 +310,11 @@
       me.name = name;
       return send("PUT", base() + "/info", { created: SERVER_TIME, hostId: me.id, hostName: name, warehouses: warehouses, start: start, end: end })
         .then(function () { status(""); openTeacher(); });
-    }).catch(function (err) { status(err.message === "refused" ? "The class couldn't be created. Please try again." : err.message); });
+    }).catch(function (err) {
+      status(err.message === "refused"
+        ? "The class couldn't be created: the database refused access. Check that the WMS rules are published in the WMS's Firebase project."
+        : err.message);
+    });
   }
 
   // Seats are filled in order: Warehouse 1 places 1–6, then Warehouse 2, and so on.
