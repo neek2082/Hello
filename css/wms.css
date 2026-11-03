@@ -134,32 +134,295 @@
   line-height: 1.1;
 }
 
-/* Student */
-.wm-progress {
-  font-size: 1.125rem;
-  font-weight: 700;
+/* Student's WMS: a side menu (a top menu bar on phones) and one screen at a time. */
+:root {
+  --wm-row: #fff6d1;   /* open line, waiting for the student */
+  --wm-ok: #2e7d32;    /* left edge of a "done" message */
 }
 
-.wm-done {
-  border-width: 2px;
-  border-color: var(--text);
-  font-weight: 600;
+:root[data-theme="dark"] {
+  --wm-row: #3a3320;
+  --wm-ok: #81c784;
 }
 
-.wm-work {
+.wm-app {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 24px;
+  border: 2px solid var(--edge);
+  background: var(--bg);
+  box-shadow: 4px 4px 0 var(--shadow);
+  min-width: 0;
 }
 
 @media (min-width: 900px) {
-  .wm-work {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
+  .wm-app {
+    grid-template-columns: 210px minmax(0, 1fr);
+    min-height: 620px;
   }
 }
 
-.wm-orders {
+.wm-side {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  background: var(--header-bg);
+  color: #e9e7df;
+}
+
+.wm-who {
+  display: grid;
+  padding: 14px 16px;
+  border-bottom: 1px solid #3a3935;
+  font-size: 0.875rem;
+  color: #c4c2b9;
+}
+
+.wm-who b {
+  color: var(--header-text);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.wm-nav {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.wm-nav button,
+.wm-signout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 4px solid transparent;
+  background: transparent;
+  color: #e9e7df;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wm-nav button:hover,
+.wm-signout:hover {
+  background: #2c2b27;
+}
+
+.wm-nav button.wm-on {
+  background: #2c2b27;
+  border-bottom-color: var(--accent);
+  color: var(--header-text);
+}
+
+.wm-nav svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.wm-count {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.wm-signout {
+  color: #c4c2b9;
+  border-top: 1px solid #3a3935;
+}
+
+/* Phones and tablets: name and "Sign out" on one row, the menu scrolls sideways underneath. */
+@media (max-width: 899px) {
+  .wm-side {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "who out" "nav nav";
+  }
+
+  .wm-who {
+    grid-area: who;
+  }
+
+  .wm-nav {
+    grid-area: nav;
+  }
+
+  .wm-signout {
+    grid-area: out;
+    width: auto;
+    border-top: 0;
+    border-bottom: 1px solid #3a3935;
+  }
+}
+
+@media (min-width: 900px) {
+  .wm-nav {
+    display: grid;
+    padding: 8px 0;
+    overflow: visible;
+  }
+
+  .wm-nav button {
+    border-bottom: 0;
+    border-left: 4px solid transparent;
+  }
+
+  .wm-nav button.wm-on {
+    border-left-color: var(--accent);
+  }
+}
+
+.wm-page {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-width: 0;
+  padding: 16px;
+}
+
+@media (min-width: 600px) {
+  .wm-page {
+    padding: 20px 24px;
+  }
+}
+
+.wm-crumb {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.wm-view {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.wm-view h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.wm-view h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.wm-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.wm-panel .wm-head h1 {
+  font-size: 1.1875rem;
+}
+
+.wm-panel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 2px solid var(--edge);
+  background: var(--surface);
+}
+
+.wm-two {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Side by side only when there's room for both (the WMS page is wider than other tools). */
+@media (min-width: 1240px) {
+  .wm-two {
+    grid-template-columns: minmax(250px, 0.65fr) minmax(0, 1.35fr);
+  }
+}
+
+/* The WMS is an app: give it more width than the other tool pages. */
+body:has(#student:not([hidden])) .container {
+  max-width: 84rem;
+}
+
+.wm-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 700px) {
+  .wm-kpis {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.wm-kpi {
+  padding: 10px 14px;
+  border: 2px solid var(--edge);
+  background: var(--surface);
+}
+
+.wm-kpi small {
+  display: block;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.wm-kpi b {
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+/* Status labels like OPEN, PICKING, SHIPPED */
+.wm-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 2px solid var(--edge);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.wm-tag-yellow {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.wm-tag-dark {
+  background: var(--header-bg);
+  border-color: var(--header-bg);
+  color: var(--header-text);
+}
+
+:root[data-theme="dark"] .wm-tag-dark {
+  border-color: var(--header-text);
+}
+
+/* Document lists and task lists: each row is a button. */
+.wm-docs,
+.wm-tasks {
   display: grid;
   gap: 8px;
   margin: 0;
@@ -167,61 +430,252 @@
   list-style: none;
 }
 
-.wm-order {
+.wm-docs button,
+.wm-tasks button {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
   width: 100%;
   min-height: 44px;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg);
+  padding: 8px 12px;
+  border: 2px solid var(--edge);
+  background: var(--surface);
   color: var(--text);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.wm-order:hover {
-  background: var(--surface);
+.wm-tasks button {
+  grid-template-columns: 92px minmax(0, 1fr);
 }
 
-/* The chosen order: thicker border, not just a color change. */
-.wm-order.wm-selected {
-  border: 2px solid var(--text);
-  padding: 9px 13px;
-  background: var(--surface);
+.wm-docs button:hover,
+.wm-tasks button:hover {
+  background: var(--bg);
 }
 
-.wm-order-id {
-  grid-row: span 2;
-  align-self: center;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+.wm-docs button.wm-on {
+  background: var(--wm-row);
+  box-shadow: inset 6px 0 0 var(--edge);
+  padding-left: 16px;
+}
+
+/* Document progress, e.g. Open → Receiving → Received → Closed */
+.wm-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
   font-weight: 700;
 }
 
-.wm-order-type {
-  font-weight: 600;
+.wm-flow li {
+  padding: 2px 8px;
+  border: 2px solid var(--edge);
+  background: var(--surface);
 }
 
-.wm-order-state {
-  font-size: 0.875rem;
-  color: var(--text-muted);
+.wm-flow li:not(:last-child)::after {
+  content: " →";
+  font-weight: 400;
 }
 
-.wm-order-state[data-done="true"] {
+.wm-flow .wm-done {
+  background: var(--header-bg);
+  border-color: var(--header-bg);
+  color: var(--header-text);
+}
+
+.wm-flow .wm-now {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.wm-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: end;
+}
+
+@media (min-width: 600px) {
+  .wm-form {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  .wm-form-3 {
+    grid-template-columns: 1fr 1fr 1fr auto;
+  }
+
+  .wm-form[data-step="put"] {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+.wm-form .btn {
+  justify-self: start;
+}
+
+.wm-view input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 2px solid var(--edge);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.wm-view input.wm-code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  text-transform: uppercase;
+}
+
+.wm-view input.wm-code::placeholder {
+  text-transform: none;
+}
+
+/* System messages, like a real WMS: what happened, or why an entry was refused. */
+.wm-msg {
+  margin: 0;
+  padding: 10px 14px;
+  border: 2px solid var(--edge);
+  border-left-width: 8px;
+  background: var(--surface);
   color: var(--text);
   font-weight: 600;
 }
 
-.wm-result {
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-left-width: 4px;
-  border-radius: 4px;
-  background: var(--bg);
-  font-weight: 600;
+.wm-msg-ok {
+  border-left-color: var(--wm-ok);
+}
+
+.wm-msg-warn {
+  border-left-color: var(--danger);
+}
+
+.wm-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.wm-facts th {
+  width: 40%;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* The warehouse map */
+.wm-map {
+  display: grid;
+  gap: 8px;
+  min-width: 480px;
+}
+
+.wm-dock {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border: 2px dashed var(--edge);
+  background: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--accent) 40%, transparent) 8px 16px);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.wm-aisle {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.wm-aisle > b {
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.wm-bin {
+  position: relative;
+  display: grid;
+  min-height: 48px;
+  padding: 4px 6px 8px;
+  border: 2px solid var(--edge);
+  background: var(--surface);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.wm-bin .wm-code {
+  font-weight: 700;
+}
+
+.wm-bin.wm-empty {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.wm-fill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 5px;
+  background: var(--accent);
+}
+
+/* Where to go: thick outline and a "GO HERE" label (put-away), or numbered stops (picking). */
+.wm-bin.wm-go {
+  outline: 4px solid var(--accent);
+  box-shadow: 0 0 0 7px var(--edge);
+  z-index: 1;
+}
+
+.wm-bin.wm-go::after {
+  content: "GO HERE";
+  position: absolute;
+  top: -11px;
+  right: -6px;
+  padding: 0 4px;
+  background: var(--header-bg);
+  color: var(--header-text);
+  font-size: 0.625rem;
+  font-weight: 800;
+}
+
+.wm-bin.wm-step {
+  outline: 3px solid var(--accent);
+}
+
+.wm-bin.wm-step::before {
+  content: attr(data-step);
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--header-bg);
+  color: var(--header-text);
+  font-size: 0.75rem;
+  font-weight: 800;
 }
 
 .wm-low {
@@ -263,7 +717,7 @@
 
 .wm-table .wm-current td {
   font-weight: 700;
-  background: var(--surface);
+  background: var(--wm-row);
 }
 
 .wm-activity {

@@ -27,7 +27,8 @@
       <p class="intro">
         A WMS (warehouse management system) is the computer system a warehouse uses to track every
         carton that comes in and goes out. Here, six students share one practice warehouse. Each of
-        you receives 3 deliveries and ships 3 store orders, and everyone sees the stock change live.
+        you receives and puts away 3 purchase orders, then picks, packs and ships 3 sales orders,
+        and everyone sees the stock in every bin change live.
       </p>
 
       <div class="wm-choices">
@@ -74,51 +75,19 @@
       </div>
     </section>
 
-    <!-- Student's workspace -->
-    <section id="student" class="wm-stack" hidden>
-      <div>
-        <h1 id="sTitle"></h1>
-        <p id="sSub" class="wm-hint"></p>
-        <p id="sOpen" class="wm-hint"></p>
-      </div>
-      <p id="sProgress" class="wm-progress"></p>
-      <p id="sAllDone" class="wm-card wm-done" hidden>✓ All your orders are done. Well done! You can keep watching the warehouse's stock change.</p>
-
-      <div class="wm-work">
-        <div class="wm-stack">
-          <h2>Your orders</h2>
-          <ul id="orderList" class="wm-orders"></ul>
-
-          <div id="orderPanel" class="wm-card" hidden>
-            <h3 id="oTitle"></h3>
-            <p id="oHelp" class="wm-hint"></p>
-            <div class="wm-scroll"><table id="oLines" class="wm-table"></table></div>
-            <form id="lineForm">
-              <p id="lineLabel" class="wm-strong"></p>
-              <div class="wm-two">
-                <label class="wm-field">SKU code
-                  <input type="text" id="lineSku" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. BEV-101">
-                </label>
-                <label class="wm-field">Quantity (cartons)
-                  <input type="number" id="lineQty" required min="0" max="999" step="1" inputmode="numeric">
-                </label>
-              </div>
-              <button type="submit" id="postBtn" class="btn btn-primary">Post</button>
-            </form>
-            <p id="oDone" class="wm-strong" hidden>✓ This order is done. Choose another one.</p>
-            <p id="lineResult" class="wm-result" role="status" aria-live="polite" hidden></p>
-          </div>
-        </div>
-
-        <div class="wm-stack">
-          <h2>Stock in your warehouse</h2>
-          <p class="wm-hint">Updates live as you and your classmates work. "On hand" is the number of cartons in the bin.</p>
-          <div class="wm-scroll"><table id="stockTable" class="wm-table"></table></div>
-          <h2>Latest activity</h2>
-          <ul id="activity" class="wm-activity"></ul>
+    <!-- Student's WMS -->
+    <section id="student" hidden>
+      <div class="wm-app">
+        <nav class="wm-side" aria-label="WMS menu">
+          <div class="wm-who"><b id="sWho"></b><span id="sWhere"></span></div>
+          <ul id="wmNav" class="wm-nav"></ul>
+          <button type="button" id="leaveStudent" class="wm-signout">Sign out</button>
+        </nav>
+        <div class="wm-page">
+          <p id="crumb" class="wm-crumb"></p>
+          <div id="view" class="wm-view"></div>
         </div>
       </div>
-      <div><button type="button" id="leaveStudent" class="btn">Leave for now</button></div>
     </section>
 
     <!-- Lecturer's board -->
@@ -135,8 +104,9 @@
         <p id="tOpen" class="wm-strong"></p>
         <p class="wm-hint">
           Students are placed in order: Warehouse 1 places 1–6, then Warehouse 2, and so on. Each place has its own
-          3 receiving and 3 shipping orders (12 lines), the same in every warehouse. A student who joins again with
-          the same name gets their place back.
+          3 purchase orders and 3 sales orders, the same in every warehouse: 21 steps in all (receive and put away
+          6 lines, pick 6 lines, pack and ship 3 orders). A student who joins again with the same name gets their
+          place back. Students see system messages, not scores; refused entries are counted here and in the CSV.
         </p>
       </div>
       <p id="tCounts" class="wm-strong"></p>

@@ -107,17 +107,27 @@ warehousing and supply chain tools. Plain language throughout.
      between those days (the database rules check this with the server's
      clock). Students join with the class code and their name or student
      number, are placed in order (Warehouse 1 places 1–6, then Warehouse 2),
-     and rejoin with the same name. Each place has its own 3 receiving and 3
-     shipping orders of 2 lines (12 lines), the same in every warehouse.
-     For each line the student types the SKU code and quantity; wrong
-     entries are logged as errors, and shipping needs enough stock.
+     and rejoin with the same name. Each place has its own 3 purchase orders
+     (PO-1011…) and 3 sales orders (SO-2011…) of 2 lines, the same in every
+     warehouse. The student screen works like a real WMS: a side menu
+     (Dashboard, Receiving, Put-away, Picking, Pack & ship, Inventory,
+     Warehouse map, Transactions), document statuses (Open → Receiving →
+     Received → Closed; Released → Picking → Picked → Shipped), and a
+     warehouse map of aisles and bins. 21 steps each: receive each PO line
+     at dock R1, put it away into its bin (the suggested bin is required; the
+     map marks it "GO HERE"), pick each SO line from its bin (the map numbers
+     the walk route; not enough in the bin = wait and retry), then pack and
+     ship each SO from dock S1. Mistakes get WMS-style system messages, never
+     a score; refused entries are logged for the lecturer. Live updates only
+     redraw what changed, so a student's half-typed entry is never lost.
      Stock is never stored: each warehouse keeps an add-only transaction
-     log, and every screen replays it in order to get the stock, so two
-     students can't overwrite each other. The 11 SKUs and order sets are
-     sample data in editable lists at the top of `js/wms.js`. The
-     lecturer's board shows each warehouse's students, progress, errors,
-     stock and activity live, downloads a student summary and the full
-     transaction log as CSV, and can delete the class.
+     log, and every screen replays it in order to get bin and dock stock, so
+     two students can't overwrite each other. The 11 SKUs (each with one
+     bin) and order sets are sample data in editable lists at the top of
+     `js/wms.js`. The lecturer's board shows each warehouse's students
+     (steps out of 21, documents closed, refused entries), bin and dock
+     stock, and activity live, downloads a student summary and the full
+     transaction log (with system messages) as CSV, and can delete the class.
    - Ideas: "Shipping Time to Singapore": starting port + sea or air
      in, rough total days split into steps out; landed cost with GST;
      container fit check.

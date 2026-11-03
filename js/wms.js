@@ -1,7 +1,8 @@
-// Warehouse Practice (WMS): students receive and ship stock in a shared practice warehouse.
+// Warehouse Practice (WMS): students run a shared practice warehouse like a real warehouse management system.
 // A lecturer starts a class for set lesson days; students join with the class code and are given
-// a warehouse (6 students each) and a place (1–6), which decides their 3 receiving and 3 shipping orders.
-// Data lives in the same Firebase Realtime Database as the Beer Game, reached with plain web requests (no library).
+// a warehouse (6 students each) and a place (1–6), which decides their 3 purchase orders and 3 sales orders.
+// Each student receives and puts away every purchase-order line, picks every sales-order line, then packs and
+// ships each sales order. Data lives in the WMS's own Firebase Realtime Database, reached with plain web requests.
 (function () {
   // Address of the WMS's own Firebase Realtime Database (project "my-second-project-72735", Singapore).
   var DB_URL = "https://my-second-project-72735-default-rtdb.asia-southeast1.firebasedatabase.app";
@@ -15,7 +16,8 @@
 
   /* ---------- Lesson data: edit these lists to change the products and orders ---------- */
 
-  // The product catalogue. "start" is how many cartons each warehouse has before anyone works.
+  // The product catalogue. Each product lives in one bin (aisle-rack-level, e.g. A-02-1).
+  // "start" is how many cartons are in that bin before anyone works.
   var SKUS = [
     { code: "BEV-101", name: "Mineral water 1.5L, 12-pack", bin: "A-01-1", start: 8 },
     { code: "BEV-102", name: "Green tea 500ml, 24-pack", bin: "A-01-2", start: 12 },
@@ -31,99 +33,153 @@
   ];
 
   // ORDER_SETS[0] is for place 1 in every warehouse, ORDER_SETS[1] for place 2, and so on.
+  // "in" = purchase order (goods arriving from a supplier), "out" = sales order (goods going to a store).
   // Each line is [SKU code, quantity].
   var ORDER_SETS = [
     [
-      { id: "IN-1-1", type: "in", partner: "FreshCo Beverages", lines: [["SNK-203", 8], ["BEV-103", 12]] },
-      { id: "IN-1-2", type: "in", partner: "Golden Grains", lines: [["BEV-101", 10], ["BEV-102", 4]] },
-      { id: "IN-1-3", type: "in", partner: "Pacific Foods", lines: [["SNK-203", 4], ["HOU-401", 10]] },
-      { id: "OUT-1-1", type: "out", partner: "Mart 7 Tampines", lines: [["SNK-201", 4], ["BEV-101", 8]] },
-      { id: "OUT-1-2", type: "out", partner: "FairBuy Bishan", lines: [["GRO-301", 5], ["BEV-102", 4]] },
-      { id: "OUT-1-3", type: "out", partner: "Daily Needs Yishun", lines: [["GRO-303", 4], ["GRO-301", 10]] }
+      { id: "PO-1011", type: "in", partner: "FreshCo Beverages", lines: [["SNK-203", 8], ["BEV-103", 12]] },
+      { id: "PO-1012", type: "in", partner: "Golden Grains", lines: [["BEV-101", 10], ["BEV-102", 4]] },
+      { id: "PO-1013", type: "in", partner: "Pacific Foods", lines: [["SNK-203", 4], ["HOU-401", 10]] },
+      { id: "SO-2011", type: "out", partner: "Mart 7 Tampines", lines: [["SNK-201", 4], ["BEV-101", 8]] },
+      { id: "SO-2012", type: "out", partner: "FairBuy Bishan", lines: [["GRO-301", 5], ["BEV-102", 4]] },
+      { id: "SO-2013", type: "out", partner: "Daily Needs Yishun", lines: [["GRO-303", 4], ["GRO-301", 10]] }
     ],
     [
-      { id: "IN-2-1", type: "in", partner: "Island Snacks Ltd", lines: [["BEV-102", 12], ["SNK-201", 12]] },
-      { id: "IN-2-2", type: "in", partner: "CleanHome Supplies", lines: [["HOU-401", 10], ["BEV-101", 10]] },
-      { id: "IN-2-3", type: "in", partner: "Lion City Traders", lines: [["GRO-301", 5], ["BEV-101", 4]] },
-      { id: "OUT-2-1", type: "out", partner: "QuickShop Jurong", lines: [["GRO-303", 6], ["BEV-103", 8]] },
-      { id: "OUT-2-2", type: "out", partner: "CornerMart Bedok", lines: [["BEV-103", 4], ["GRO-303", 10]] },
-      { id: "OUT-2-3", type: "out", partner: "ValueStore Clementi", lines: [["SNK-202", 12], ["GRO-303", 5]] }
+      { id: "PO-1021", type: "in", partner: "Island Snacks Ltd", lines: [["BEV-102", 12], ["SNK-201", 12]] },
+      { id: "PO-1022", type: "in", partner: "CleanHome Supplies", lines: [["HOU-401", 10], ["BEV-101", 10]] },
+      { id: "PO-1023", type: "in", partner: "Lion City Traders", lines: [["GRO-301", 5], ["BEV-101", 4]] },
+      { id: "SO-2021", type: "out", partner: "QuickShop Jurong", lines: [["GRO-303", 6], ["BEV-103", 8]] },
+      { id: "SO-2022", type: "out", partner: "CornerMart Bedok", lines: [["BEV-103", 4], ["GRO-303", 10]] },
+      { id: "SO-2023", type: "out", partner: "ValueStore Clementi", lines: [["SNK-202", 12], ["GRO-303", 5]] }
     ],
     [
-      { id: "IN-3-1", type: "in", partner: "Golden Grains", lines: [["BEV-102", 10], ["HOU-401", 12]] },
-      { id: "IN-3-2", type: "in", partner: "Pacific Foods", lines: [["SNK-201", 4], ["SNK-203", 10]] },
-      { id: "IN-3-3", type: "in", partner: "FreshCo Beverages", lines: [["BEV-102", 4], ["HOU-401", 10]] },
-      { id: "OUT-3-1", type: "out", partner: "FairBuy Bishan", lines: [["SNK-201", 12], ["GRO-302", 10]] },
-      { id: "OUT-3-2", type: "out", partner: "Daily Needs Yishun", lines: [["GRO-301", 8], ["SNK-203", 10]] },
-      { id: "OUT-3-3", type: "out", partner: "Mart 7 Tampines", lines: [["GRO-302", 6], ["SNK-203", 5]] }
+      { id: "PO-1031", type: "in", partner: "Golden Grains", lines: [["BEV-102", 10], ["HOU-401", 12]] },
+      { id: "PO-1032", type: "in", partner: "Pacific Foods", lines: [["SNK-201", 4], ["SNK-203", 10]] },
+      { id: "PO-1033", type: "in", partner: "FreshCo Beverages", lines: [["BEV-102", 4], ["HOU-401", 10]] },
+      { id: "SO-2031", type: "out", partner: "FairBuy Bishan", lines: [["SNK-201", 12], ["GRO-302", 10]] },
+      { id: "SO-2032", type: "out", partner: "Daily Needs Yishun", lines: [["GRO-301", 8], ["SNK-203", 10]] },
+      { id: "SO-2033", type: "out", partner: "Mart 7 Tampines", lines: [["GRO-302", 6], ["SNK-203", 5]] }
     ],
     [
-      { id: "IN-4-1", type: "in", partner: "CleanHome Supplies", lines: [["BEV-103", 4], ["SNK-201", 10]] },
-      { id: "IN-4-2", type: "in", partner: "Lion City Traders", lines: [["SNK-202", 8], ["GRO-303", 6]] },
-      { id: "IN-4-3", type: "in", partner: "Island Snacks Ltd", lines: [["GRO-302", 10], ["SNK-202", 4]] },
-      { id: "OUT-4-1", type: "out", partner: "CornerMart Bedok", lines: [["BEV-102", 8], ["GRO-303", 5]] },
-      { id: "OUT-4-2", type: "out", partner: "ValueStore Clementi", lines: [["SNK-203", 8], ["BEV-103", 8]] },
-      { id: "OUT-4-3", type: "out", partner: "QuickShop Jurong", lines: [["BEV-101", 10], ["BEV-102", 10]] }
+      { id: "PO-1041", type: "in", partner: "CleanHome Supplies", lines: [["BEV-103", 4], ["SNK-201", 10]] },
+      { id: "PO-1042", type: "in", partner: "Lion City Traders", lines: [["SNK-202", 8], ["GRO-303", 6]] },
+      { id: "PO-1043", type: "in", partner: "Island Snacks Ltd", lines: [["GRO-302", 10], ["SNK-202", 4]] },
+      { id: "SO-2041", type: "out", partner: "CornerMart Bedok", lines: [["BEV-102", 8], ["GRO-303", 5]] },
+      { id: "SO-2042", type: "out", partner: "ValueStore Clementi", lines: [["SNK-203", 8], ["BEV-103", 8]] },
+      { id: "SO-2043", type: "out", partner: "QuickShop Jurong", lines: [["BEV-101", 10], ["BEV-102", 10]] }
     ],
     [
-      { id: "IN-5-1", type: "in", partner: "Pacific Foods", lines: [["SNK-203", 12], ["HOU-402", 6]] },
-      { id: "IN-5-2", type: "in", partner: "FreshCo Beverages", lines: [["HOU-401", 10], ["GRO-302", 8]] },
-      { id: "IN-5-3", type: "in", partner: "Golden Grains", lines: [["BEV-102", 6], ["HOU-402", 8]] },
-      { id: "OUT-5-1", type: "out", partner: "Daily Needs Yishun", lines: [["HOU-402", 4], ["BEV-102", 12]] },
-      { id: "OUT-5-2", type: "out", partner: "Mart 7 Tampines", lines: [["SNK-202", 12], ["HOU-401", 8]] },
-      { id: "OUT-5-3", type: "out", partner: "FairBuy Bishan", lines: [["SNK-202", 12], ["GRO-301", 6]] }
+      { id: "PO-1051", type: "in", partner: "Pacific Foods", lines: [["SNK-203", 12], ["HOU-402", 6]] },
+      { id: "PO-1052", type: "in", partner: "FreshCo Beverages", lines: [["HOU-401", 10], ["GRO-302", 8]] },
+      { id: "PO-1053", type: "in", partner: "Golden Grains", lines: [["BEV-102", 6], ["HOU-402", 8]] },
+      { id: "SO-2051", type: "out", partner: "Daily Needs Yishun", lines: [["HOU-402", 4], ["BEV-102", 12]] },
+      { id: "SO-2052", type: "out", partner: "Mart 7 Tampines", lines: [["SNK-202", 12], ["HOU-401", 8]] },
+      { id: "SO-2053", type: "out", partner: "FairBuy Bishan", lines: [["SNK-202", 12], ["GRO-301", 6]] }
     ],
     [
-      { id: "IN-6-1", type: "in", partner: "Lion City Traders", lines: [["BEV-101", 6], ["GRO-302", 5]] },
-      { id: "IN-6-2", type: "in", partner: "Island Snacks Ltd", lines: [["HOU-401", 8], ["BEV-102", 4]] },
-      { id: "IN-6-3", type: "in", partner: "CleanHome Supplies", lines: [["SNK-201", 5], ["SNK-202", 12]] },
-      { id: "OUT-6-1", type: "out", partner: "ValueStore Clementi", lines: [["SNK-201", 8], ["GRO-301", 8]] },
-      { id: "OUT-6-2", type: "out", partner: "QuickShop Jurong", lines: [["BEV-102", 8], ["BEV-103", 8]] },
-      { id: "OUT-6-3", type: "out", partner: "CornerMart Bedok", lines: [["GRO-303", 5], ["SNK-202", 8]] }
+      { id: "PO-1061", type: "in", partner: "Lion City Traders", lines: [["BEV-101", 6], ["GRO-302", 5]] },
+      { id: "PO-1062", type: "in", partner: "Island Snacks Ltd", lines: [["HOU-401", 8], ["BEV-102", 4]] },
+      { id: "PO-1063", type: "in", partner: "CleanHome Supplies", lines: [["SNK-201", 5], ["SNK-202", 12]] },
+      { id: "SO-2061", type: "out", partner: "ValueStore Clementi", lines: [["SNK-201", 8], ["GRO-301", 8]] },
+      { id: "SO-2062", type: "out", partner: "QuickShop Jurong", lines: [["BEV-102", 8], ["BEV-103", 8]] },
+      { id: "SO-2063", type: "out", partner: "CornerMart Bedok", lines: [["GRO-303", 5], ["SNK-202", 8]] }
     ]
   ];
 
-  /* ---------- Stock rules ---------- */
+  /* ---------- Warehouse rules ---------- */
 
   // Every warehouse keeps a log of transactions, added to and never changed. Stock is worked out by replaying
   // the log in order, so every screen agrees and two students can never overwrite each other's change:
-  // if two students try to ship the last cartons at the same moment, the one logged first gets them and the
-  // other is told there isn't enough stock.
+  // if two students try to pick the last cartons at the same moment, the one logged first gets them and the
+  // other is told the bin doesn't have enough.
+  //
+  // The steps, as in a real warehouse:
+  //   purchase order line: receive at dock R1 ("rcv"), then put away into the product's bin ("put")
+  //   sales order line:    pick from the product's bin ("pick")
+  //   sales order:         pack and ship from dock S1 once every line is picked ("ship")
   function skuByCode(code) { for (var i = 0; i < SKUS.length; i++) if (SKUS[i].code === code) return SKUS[i]; return null; }
   function orderSet(place) { return ORDER_SETS[(place - 1) % ORDER_SETS.length]; }
-  function orderById(place, id) { return orderSet(place).filter(function (o) { return o.id === id; })[0] || null; }
-  var LINES_EACH = ORDER_SETS[0].reduce(function (n, o) { return n + o.lines.length; }, 0);
-  var ORDERS_EACH = ORDER_SETS[0].length;
+  function docById(place, id) { return orderSet(place).filter(function (o) { return o.id === id; })[0] || null; }
+  var STEPS_EACH = ORDER_SETS[0].reduce(function (n, o) { return n + (o.type === "in" ? 2 * o.lines.length : o.lines.length + 1); }, 0);
+  var DOCS_EACH = ORDER_SETS[0].length;
 
   function replay(log) {
-    var stock = {}, done = {}, results = {}, errors = {}, first = {}, last = {}, keys = Object.keys(log || {}).sort();
-    SKUS.forEach(function (s) { stock[s.code] = s.start; });
-    for (var p = 1; p <= PLACES; p++) { done[p] = {}; errors[p] = 0; }
+    var bin = {}, dock = {}, done = {}, results = {}, errors = {}, steps = {}, first = {}, last = {}, keys = Object.keys(log || {}).sort();
+    SKUS.forEach(function (s) { bin[s.code] = s.start; dock[s.code] = 0; });
+    for (var p = 1; p <= PLACES; p++) { done[p] = {}; errors[p] = 0; steps[p] = 0; }
     keys.forEach(function (key) {
       var e = log[key], p = e.p;
       if (!done[p]) return;
       if (!first[p] || e.at < first[p]) first[p] = e.at;
       if (!last[p] || e.at > last[p]) last[p] = e.at;
-      var order = orderById(p, e.order), line = order && order.lines[e.line];
-      if (e.t === "err" || !line || line[0] !== e.sku || line[1] !== e.qty) {
-        errors[p]++;
-        results[key] = "err";
-        return;
-      }
-      var id = e.order + "/" + e.line;
-      if (done[p][id]) { results[key] = "dup"; return; }
-      if (order.type === "out" && stock[line[0]] < line[1]) { results[key] = "short"; return; }
-      stock[line[0]] += order.type === "in" ? line[1] : -line[1];
-      done[p][id] = key;
-      results[key] = "ok";
+      var res = apply(e, done[p]);
+      results[key] = res;
+      if (res === "err") errors[p]++;
+      if (res === "ok") steps[p]++;
     });
-    return { stock: stock, done: done, results: results, errors: errors, first: first, last: last, keys: keys };
+    function apply(e, d) {
+      if (e.t === "err") return "err";
+      var doc = docById(e.p, e.doc);
+      if (!doc) return "err";
+      if (e.t === "ship") {
+        if (doc.type !== "out" || !doc.lines.every(function (l, i) { return d[doc.id + "/" + i + "/pick"]; })) return "err";
+        if (d[doc.id + "/ship"]) return "dup";
+        d[doc.id + "/ship"] = true;
+        return "ok";
+      }
+      var line = doc.lines[e.line], sku = line && skuByCode(line[0]);
+      if (!sku || e.sku !== line[0] || e.qty !== line[1]) return "err";
+      var id = doc.id + "/" + e.line + "/" + e.t;
+      if (e.t === "rcv" && doc.type === "in") {
+        if (d[id]) return "dup";
+        dock[sku.code] += line[1];
+      } else if (e.t === "put" && doc.type === "in") {
+        if (!d[doc.id + "/" + e.line + "/rcv"] || e.bin !== sku.bin) return "err";
+        if (d[id]) return "dup";
+        dock[sku.code] -= line[1];
+        bin[sku.code] += line[1];
+      } else if (e.t === "pick" && doc.type === "out") {
+        if (e.bin !== sku.bin) return "err";
+        if (d[id]) return "dup";
+        if (bin[sku.code] < line[1]) return "short";
+        bin[sku.code] -= line[1];
+      } else {
+        return "err";
+      }
+      d[id] = true;
+      return "ok";
+    }
+    return { bin: bin, dock: dock, done: done, results: results, errors: errors, steps: steps, first: first, last: last, keys: keys };
   }
 
-  function linesDone(r, p) { return Object.keys(r.done[p] || {}).length; }
-  function ordersDone(r, p) {
-    return orderSet(p).filter(function (o) { return o.lines.every(function (l, i) { return r.done[p][o.id + "/" + i]; }); }).length;
+  function docClosed(r, p, doc) {
+    var d = r.done[p];
+    return doc.type === "in" ? doc.lines.every(function (l, i) { return d[doc.id + "/" + i + "/put"]; }) : !!d[doc.id + "/ship"];
   }
+  function docsClosed(r, p) { return orderSet(p).filter(function (o) { return docClosed(r, p, o); }).length; }
+
+  // Status words, as a WMS would show them.
+  function docStatus(r, p, doc) {
+    var d = r.done[p], n = doc.lines.length, count = function (step) { return doc.lines.filter(function (l, i) { return d[doc.id + "/" + i + "/" + step]; }).length; };
+    if (doc.type === "in") {
+      var rc = count("rcv"), pt = count("put");
+      return pt === n ? "Closed" : rc === n ? "Received" : rc ? "Receiving" : "Open";
+    }
+    var pk = count("pick");
+    return d[doc.id + "/ship"] ? "Shipped" : pk === n ? "Picked" : pk ? "Picking" : "Released";
+  }
+
+  // The bins in the warehouse, from the product list: aisles A, B, …; racks 01, 02, …; levels 1, 2, ….
+  var LAYOUT = (function () {
+    var aisles = {}, maxRack = 1, maxLevel = 1;
+    SKUS.forEach(function (s) {
+      var m = s.bin.split("-");
+      aisles[m[0]] = true;
+      maxRack = Math.max(maxRack, Number(m[1]));
+      maxLevel = Math.max(maxLevel, Number(m[2]));
+    });
+    return { aisles: Object.keys(aisles).sort(), racks: maxRack, levels: maxLevel };
+  })();
 
   // Check that every warehouse can always finish: stock at the start plus all receipts covers all shipments.
   (function checkData() {
@@ -210,7 +266,8 @@
   function openText(info) { return day(info.start) + " to " + day(info.end); }
 
   var stopWatching = null, me = blankMe(), info = null, wlog = {}, cls = null;
-  var selectedOrder = "", pending = {}, lastResult = "";
+  var view = "dash", sel = "", pending = {}, msg = null; // student's current screen, selected document, last system message
+  var msgSeq = 0; // each new system message gets the next number
 
   function blankMe() { return { kind: "", code: "", w: 0, p: 0, name: "", id: randomId(12) }; }
   function base() { return "wmsClasses/" + me.code; }
@@ -236,9 +293,10 @@
     info = null;
     cls = null;
     wlog = {};
-    selectedOrder = "";
+    view = "dash";
+    sel = "";
     pending = {};
-    lastResult = "";
+    msg = null;
     showIntro();
   }
 
@@ -361,16 +419,33 @@
 
   /* ----- Student ----- */
 
+  var VIEWS = [
+    { key: "dash", name: "Dashboard", icon: '<path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/>' },
+    { key: "in", name: "Receiving", icon: '<path d="M3 10h18v11H3z"/><path d="M12 2v7M9 6l3 3 3-3"/>' },
+    { key: "put", name: "Put-away", icon: '<path d="M3 21V4h18v17M3 11h18M3 17h18"/><path d="M8 7h3"/>' },
+    { key: "out", name: "Picking", icon: '<path d="M3 10h18v11H3z"/><path d="M12 9V2M9 5l3-3 3 3"/>' },
+    { key: "ship", name: "Pack & ship", icon: '<path d="M2 6h12v10H2zM14 9h4l4 4v3h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>' },
+    { key: "inv", name: "Inventory", icon: '<path d="M4 21h16M5 21V9h6v12M13 21V5h6v16"/>' },
+    { key: "map", name: "Warehouse map", icon: '<path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2z"/><path d="M9 3v16M15 5v16"/>' },
+    { key: "log", name: "Transactions", icon: '<path d="M5 3h14v18H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>' }
+  ];
+  function viewName(key) { return VIEWS.filter(function (v) { return v.key === key; })[0].name; }
+  function svgIcon(path) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">' + path + "</svg>";
+  }
+
   function openStudent() {
     stop();
     save();
     show("student");
-    $("sTitle").textContent = "Warehouse " + me.w + " · " + me.name;
-    $("sSub").textContent = "Class " + me.code + " · Place " + me.p + " of " + PLACES;
+    view = "dash";
+    sel = "";
+    msg = null;
+    $("sWho").textContent = me.name;
+    $("sWhere").textContent = "Warehouse " + me.w + " · Class " + me.code;
     send("GET", base() + "/info").then(function (inf) {
       if (!inf) { leave(); status("This class no longer exists."); return; }
       info = inf;
-      $("sOpen").textContent = "Open " + openText(inf) + ".";
       stopWatching = watch(base() + "/log/w" + me.w, function (log) {
         wlog = log || {};
         renderStudent();
@@ -382,136 +457,354 @@
       var prevStop = stopWatching;
       stopWatching = function () { prevStop(); stopInfo(); };
     }).catch(function (err) { status(err.message); });
+    renderStudent();
+  }
+
+  // The student's open work, used for the menu counts, the dashboard and the task lists.
+  function tasks(r) {
+    var p = me.p, d = r.done[p], t = { receive: [], put: [], pick: [], ship: [] };
+    orderSet(p).forEach(function (o) {
+      if (o.type === "in") {
+        if (o.lines.some(function (l, i) { return !d[o.id + "/" + i + "/rcv"]; })) t.receive.push(o);
+        o.lines.forEach(function (l, i) {
+          if (d[o.id + "/" + i + "/rcv"] && !d[o.id + "/" + i + "/put"]) t.put.push({ doc: o, line: i, key: o.id + "/" + i });
+        });
+      } else if (!d[o.id + "/ship"]) {
+        if (o.lines.every(function (l, i) { return d[o.id + "/" + i + "/pick"]; })) t.ship.push(o);
+        else t.pick.push(o);
+      }
+    });
+    return t;
   }
 
   function renderStudent() {
-    var r = replay(wlog), p = me.p, orders = orderSet(p);
-    var lines = linesDone(r, p), done = ordersDone(r, p);
-    $("sProgress").textContent = lines + " of " + LINES_EACH + " lines · " + done + " of " + ORDERS_EACH + " orders done · " +
-      r.errors[p] + " error" + (r.errors[p] === 1 ? "" : "s");
-    $("sAllDone").hidden = lines < LINES_EACH;
-
-    $("orderList").innerHTML = orders.map(function (o) {
-      var n = o.lines.filter(function (l, i) { return r.done[p][o.id + "/" + i]; }).length;
-      var state = n === o.lines.length ? "Done" : n ? n + " of " + o.lines.length + " lines" : "Not started";
-      return '<li><button type="button" class="wm-order' + (o.id === selectedOrder ? " wm-selected" : "") + '" data-order="' + o.id + '"' +
-        (o.id === selectedOrder ? ' aria-current="true"' : "") + ">" +
-        '<span class="wm-order-id">' + o.id + "</span>" +
-        '<span class="wm-order-type">' + (o.type === "in" ? "Receive from " : "Ship to ") + esc(o.partner) + "</span>" +
-        '<span class="wm-order-state" data-done="' + (n === o.lines.length) + '">' + (n === o.lines.length ? "✓ " : "") + state + "</span></button></li>";
+    var r = replay(wlog), t = tasks(r);
+    var counts = { "in": t.receive.length, put: t.put.length, out: t.pick.length, ship: t.ship.length };
+    $("wmNav").innerHTML = VIEWS.map(function (v) {
+      return '<li><button type="button" data-view="' + v.key + '"' + (v.key === view ? ' class="wm-on" aria-current="page"' : "") + ">" + svgIcon(v.icon) +
+        "<span>" + v.name + "</span>" + (counts[v.key] ? '<span class="wm-count">' + counts[v.key] + "</span>" : "") + "</button></li>";
     }).join("");
 
-    // Pending posts: tell the student what happened once their entry comes back in the log.
+    // Pending posts: tell the student what happened once their transaction comes back in the log.
     Object.keys(pending).forEach(function (key) {
       var res = r.results[key];
       if (!res) return;
       var pend = pending[key];
       delete pending[key];
-      if (res === "ok") lastResult = pend.okText;
-      else if (res === "short") lastResult = "Not enough stock: a classmate shipped it first. Wait for a delivery, then try again.";
-      else if (res === "dup") lastResult = "That line was already done.";
+      if (res === "ok") msg = { seq: ++msgSeq, kind: "ok", text: pend.okText };
+      else if (res === "short") msg = { seq: ++msgSeq, kind: "warn", text: pend.shortText };
+      else if (res === "dup") msg = { seq: ++msgSeq, kind: "warn", text: "Already done: a second copy of this transaction was ignored." };
+      else msg = { seq: ++msgSeq, kind: "warn", text: "The system didn't accept that transaction." };
     });
 
-    renderOrder(r);
-    renderStock(r);
-    renderActivity(r);
+    $("crumb").textContent = "WMS › " + viewName(view) + (sel ? " › " + sel.split("/")[0] : "");
+    var next = document.createElement("div");
+    next.innerHTML = ({ dash: viewDash, "in": viewReceive, put: viewPut, out: viewPick, ship: viewShip, inv: viewInventory, map: viewMap, log: viewLog })[view](r, t);
+    // When a classmate's work updates the screen, only redraw what changed, and never touch the form the student
+    // is typing in, so they keep their text, their cursor and their place.
+    if (!patch($("view"), next)) $("view").replaceChildren.apply($("view"), Array.prototype.slice.call(next.childNodes));
   }
 
-  function renderOrder(r) {
-    var o = selectedOrder && orderById(me.p, selectedOrder);
-    $("orderPanel").hidden = !o;
-    if (!o) return;
-    var p = me.p, isIn = o.type === "in";
-    $("oTitle").textContent = o.id + ": " + (isIn ? "Receiving from " : "Shipping to ") + o.partner;
-    $("oHelp").textContent = isIn
-      ? "Goods have arrived. For each line, type the product's SKU code (find it in the stock list) and the quantity received, then post it."
-      : "A store ordered these goods. For each line, type the product's SKU code (find it in the stock list) and the quantity picked, then post it.";
-    var left = 0;
-    $("oLines").innerHTML = "<thead><tr><th>Line</th><th>Product</th><th>Bin</th><th>Qty</th><th>Status</th></tr></thead><tbody>" +
+  // Make the page's elements match the new ones, replacing only parts that differ. A form that looks the same
+  // (same boxes) is kept as it is. Returns false if the layout changed too much, so the caller redraws all of it.
+  function patch(oldEl, newEl) {
+    var a = oldEl.childNodes, b = newEl.childNodes;
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      var o = a[i], n = b[i];
+      if (o.isEqualNode(n)) continue;
+      var hasForm = o.nodeType === 1 && (o.tagName === "FORM" || o.querySelector("form"));
+      if (!hasForm) { oldEl.replaceChild(n.cloneNode(true), o); continue; }
+      if (o.tagName !== n.tagName) return false;
+      if (o.tagName === "FORM") {
+        if (o.outerHTML !== n.outerHTML) return false; // different boxes: redraw everything
+        continue;
+      }
+      for (var k = o.attributes.length - 1; k >= 0; k--) o.removeAttribute(o.attributes[k].name);
+      for (var m = 0; m < n.attributes.length; m++) o.setAttribute(n.attributes[m].name, n.attributes[m].value);
+      if (!patch(o, n)) return false;
+    }
+    return true;
+  }
+
+  function message() {
+    return msg ? '<p class="wm-msg wm-msg-' + msg.kind + '" role="status" data-seq="' + msg.seq + '">' + msg.text + "</p>" : "";
+  }
+  function tag(text, kind) { return '<span class="wm-tag' + (kind ? " wm-tag-" + kind : "") + '">' + text + "</span>"; }
+  function statusTag(s) {
+    return tag(s, s === "Closed" || s === "Shipped" ? "dark" : s === "Open" || s === "Released" ? "" : "yellow");
+  }
+  function head(title, right) {
+    return '<div class="wm-head"><h1>' + title + "</h1>" + (right || "") + "</div>";
+  }
+  function flow(steps, now) {
+    var i = steps.indexOf(now);
+    return '<ol class="wm-flow">' + steps.map(function (s, n) {
+      return '<li class="' + (n < i ? "wm-done" : n === i ? "wm-now" : "") + '">' + s + "</li>";
+    }).join("") + "</ol>";
+  }
+  function docList(docs, r, empty) {
+    if (!docs.length) return '<p class="wm-hint">' + empty + "</p>";
+    return '<ul class="wm-docs">' + docs.map(function (o) {
+      var st = docStatus(r, me.p, o);
+      return '<li><button type="button" data-doc="' + o.id + '"' + (o.id === sel ? ' class="wm-on" aria-current="true"' : "") + ">" +
+        '<span class="wm-code">' + o.id + "</span><span>" + esc(o.partner) + "</span>" + statusTag(st) + "</button></li>";
+    }).join("") + "</ul>";
+  }
+
+  function viewDash(r, t) {
+    var name = me.name.split(" ")[0], hour = new Date().getHours();
+    var hello = (hour < 12 ? "Good morning, " : hour < 18 ? "Good afternoon, " : "Good evening, ") + esc(name);
+    var list = [];
+    t.put.forEach(function (x) {
+      var l = x.doc.lines[x.line], s = skuByCode(l[0]);
+      list.push([tag("Put away", "yellow"), '<b class="wm-code">' + x.doc.id + "</b> · " + esc(s.name) + " × " + l[1] + ' → bin <b class="wm-code">' + s.bin + "</b>", "put", x.key]);
+    });
+    t.pick.forEach(function (o) { list.push([tag("Pick"), '<b class="wm-code">' + o.id + "</b> · " + esc(o.partner) + " · " + o.lines.length + " lines", "out", o.id]); });
+    t.ship.forEach(function (o) { list.push([tag("Ship", "dark"), '<b class="wm-code">' + o.id + "</b> · " + esc(o.partner) + " · picked", "ship", o.id]); });
+    t.receive.forEach(function (o) { list.push([tag("Receive"), '<b class="wm-code">' + o.id + "</b> · " + esc(o.partner) + " · " + o.lines.length + " lines", "in", o.id]); });
+    var done = !list.length;
+    return head(hello, tag("Warehouse " + me.w, "dark")) +
+      '<div class="wm-kpis">' +
+      kpi("Purchase orders to receive", t.receive.length) + kpi("Waiting put-away", t.put.length) +
+      kpi("Sales orders to pick", t.pick.length) + kpi("Ready to ship", t.ship.length) + "</div>" +
+      '<div class="wm-two"><div class="wm-panel"><h2>My tasks</h2>' +
+      (done ? '<p class="wm-msg wm-msg-ok">All your documents are closed. Nothing left to do. You can still look around the warehouse.</p>'
+        : '<ul class="wm-tasks">' + list.map(function (x) {
+          return '<li><button type="button" data-go="' + x[2] + '" data-sel="' + x[3] + '">' + x[0] + "<span>" + x[1] + "</span></button></li>";
+        }).join("") + "</ul>") +
+      '</div><div class="wm-panel"><h2>Warehouse activity</h2>' + activity(r, 8) + "</div></div>";
+  }
+  function kpi(label, n) { return '<div class="wm-kpi"><small>' + label + "</small><b>" + n + "</b></div>"; }
+
+  function viewReceive(r, t) {
+    var docs = orderSet(me.p).filter(function (o) { return o.type === "in"; });
+    var o = sel && docById(me.p, sel.split("/")[0]);
+    if (!o || o.type !== "in") o = null;
+    var out = head("Receiving") + '<div class="wm-two"><div class="wm-panel"><h2>Purchase orders</h2>' + docList(docs, r, "") + "</div>";
+    if (!o) return out + '<div class="wm-panel"><p class="wm-hint">Choose a purchase order to receive its goods at dock R1.</p></div></div>';
+    var d = r.done[me.p], st = docStatus(r, me.p, o), open = o.lines.some(function (l, i) { return !d[o.id + "/" + i + "/rcv"]; });
+    return out + '<div class="wm-panel">' + head(o.id + " · " + esc(o.partner), statusTag(st)) +
+      flow(["Open", "Receiving", "Received", "Closed"], st) +
+      '<div class="wm-scroll"><table class="wm-table"><thead><tr><th>Line</th><th>SKU</th><th>Ordered</th><th>Received</th><th>Status</th><th>Description</th></tr></thead><tbody>' +
       o.lines.map(function (l, i) {
-        var sku = skuByCode(l[0]), isDone = !!r.done[p][o.id + "/" + i];
-        if (!isDone) left++;
-        return "<tr" + (isDone ? "" : ' class="wm-current"') + "><td>" + (i + 1) + "</td><td>" + esc(sku.name) + "</td><td class=\"wm-code\">" + sku.bin + "</td><td>" + l[1] +
-          "</td><td>" + (isDone ? "✓ Posted" : "To do") + "</td></tr>";
-      }).join("") + "</tbody>";
-    $("lineForm").hidden = !left;
-    $("oDone").hidden = !!left;
-    $("lineLabel").textContent = left === 1 ? "1 line to do" : left + " lines to do, in any order";
-    $("postBtn").textContent = isIn ? "Post receipt" : "Post pick";
-    $("lineResult").textContent = lastResult;
-    $("lineResult").hidden = !lastResult;
+        var got = d[o.id + "/" + i + "/rcv"], s = skuByCode(l[0]);
+        return "<tr" + (got ? "" : ' class="wm-current"') + "><td>" + (i + 1) + '</td><td class="wm-code">' + l[0] + "</td><td>" + l[1] + "</td><td>" + (got ? l[1] : 0) +
+          "</td><td>" + (got ? tag("Received", "dark") : tag("Open")) + "</td><td>" + esc(s.name) + "</td></tr>";
+      }).join("") + "</tbody></table></div>" +
+      (open ? '<form class="wm-form" data-step="rcv"><label class="wm-field">SKU<input id="fSku" class="wm-code" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. BEV-103"></label>' +
+        '<label class="wm-field">Quantity received<input id="fQty" type="number" min="0" max="999" step="1" inputmode="numeric" required></label>' +
+        '<button type="submit" class="btn btn-primary">Confirm receipt</button></form>'
+        : '<p class="wm-hint">All lines received. The goods are waiting at dock R1: go to <button type="button" class="wm-link" data-go="put" data-sel="">Put-away</button>.</p>') +
+      message() + "</div></div>";
   }
 
-  function renderStock(r) {
-    $("stockTable").innerHTML = "<thead><tr><th>SKU code</th><th>Product</th><th>Bin</th><th>On hand</th></tr></thead><tbody>" +
+  function viewPut(r, t) {
+    var x = t.put.filter(function (y) { return y.key === sel; })[0] || t.put[0];
+    if (x) sel = x.key;
+    var out = head("Put-away") + '<div class="wm-two"><div class="wm-panel"><h2>Waiting at dock R1</h2>';
+    out += t.put.length ? '<ul class="wm-docs">' + t.put.map(function (y) {
+      var l = y.doc.lines[y.line], s = skuByCode(l[0]);
+      return '<li><button type="button" data-sel="' + y.key + '"' + (y === x ? ' class="wm-on" aria-current="true"' : "") + '><span class="wm-code">' + y.doc.id + "</span><span>" +
+        esc(s.name) + " × " + l[1] + "</span>" + tag(s.bin, "yellow") + "</button></li>";
+    }).join("") + "</ul>" : '<p class="wm-hint">Nothing waiting. Receive a purchase order first; its goods then wait here.</p>';
+    out += message() + "</div>";
+    if (!x) return out + '<div class="wm-panel"><h2>Warehouse map</h2>' + map(r, {}) + "</div></div>";
+    var l = x.doc.lines[x.line], s = skuByCode(l[0]), go = {};
+    go[s.bin] = "go";
+    return out + '<div class="wm-panel"><h2>Put away ' + l[1] + " × " + esc(s.name) + "</h2>" +
+      '<table class="wm-table wm-facts"><tbody><tr><th>Document</th><td class="wm-code">' + x.doc.id + " line " + (x.line + 1) + '</td></tr><tr><th>SKU</th><td class="wm-code">' + s.code +
+      "</td></tr><tr><th>Quantity</th><td>" + l[1] + ' cartons</td></tr><tr><th>Suggested bin</th><td class="wm-code">' + s.bin + "</td></tr></tbody></table>" +
+      map(r, go) +
+      '<form class="wm-form" data-step="put"><label class="wm-field">Bin you put it in<input id="fBin" class="wm-code" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. A-02-1"></label>' +
+      '<button type="submit" class="btn btn-primary">Confirm put-away</button></form></div></div>';
+  }
+
+  function viewPick(r, t) {
+    var docs = orderSet(me.p).filter(function (o) { return o.type === "out"; });
+    var o = sel && docById(me.p, sel.split("/")[0]);
+    if (!o || o.type !== "out") o = null;
+    var out = head("Picking") + '<div class="wm-two"><div class="wm-panel"><h2>Sales orders</h2>' + docList(docs, r, "") + "</div>";
+    if (!o) return out + '<div class="wm-panel"><p class="wm-hint">Choose a sales order to see its pick list and walk route.</p></div></div>';
+    var d = r.done[me.p], st = docStatus(r, me.p, o);
+    var rows = o.lines.map(function (l, i) { return { l: l, i: i, s: skuByCode(l[0]) }; }).sort(function (a, b) { return a.s.bin < b.s.bin ? -1 : 1; });
+    var route = {}, n = 0, open = false;
+    rows.forEach(function (x) { if (!d[o.id + "/" + x.i + "/pick"]) { route[x.s.bin] = ++n; open = true; } });
+    return out + '<div class="wm-panel">' + head(o.id + " · " + esc(o.partner), statusTag(st)) +
+      flow(["Released", "Picking", "Picked", "Shipped"], st) +
+      '<div class="wm-scroll"><table class="wm-table"><thead><tr><th>Bin</th><th>SKU</th><th>Qty</th><th>In bin</th><th>Picked</th><th>Description</th></tr></thead><tbody>' +
+      rows.map(function (x) {
+        var got = d[o.id + "/" + x.i + "/pick"];
+        return "<tr" + (got ? "" : ' class="wm-current"') + '><td class="wm-code">' + x.s.bin + '</td><td class="wm-code">' + x.s.code + "</td><td>" + x.l[1] + "</td><td>" + r.bin[x.s.code] +
+          "</td><td>" + (got ? "✓ " + x.l[1] : "—") + "</td><td>" + esc(x.s.name) + "</td></tr>";
+      }).join("") + "</tbody></table></div>" +
+      (open ? '<form class="wm-form wm-form-3" data-step="pick"><label class="wm-field">Bin<input id="fBin" class="wm-code" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. A-01-1"></label>' +
+        '<label class="wm-field">SKU<input id="fSku" class="wm-code" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. BEV-101"></label>' +
+        '<label class="wm-field">Quantity picked<input id="fQty" type="number" min="0" max="999" step="1" inputmode="numeric" required></label>' +
+        '<button type="submit" class="btn btn-primary">Confirm pick</button></form>'
+        : st === "Shipped" ? "" : '<p class="wm-hint">All lines picked. Go to <button type="button" class="wm-link" data-go="ship" data-sel="' + o.id + '">Pack &amp; ship</button>.</p>') +
+      message() + (open ? "<h2>Walk route</h2>" + map(r, route) : "") + "</div></div>";
+  }
+
+  function viewShip(r, t) {
+    var docs = orderSet(me.p).filter(function (o) { return o.type === "out"; });
+    return head("Pack & ship") + message() + '<div class="wm-panel"><h2>Sales orders at dock S1</h2><div class="wm-scroll"><table class="wm-table"><thead><tr><th>Order</th><th>Customer</th><th>Lines</th><th>Status</th><th></th></tr></thead><tbody>' +
+      docs.map(function (o) {
+        var st = docStatus(r, me.p, o);
+        return '<tr><td class="wm-code">' + o.id + "</td><td>" + esc(o.partner) + "</td><td>" + o.lines.map(function (l) { return l[1] + " × " + l[0]; }).join(", ") + "</td><td>" + statusTag(st) +
+          "</td><td>" + (st === "Picked" ? '<button type="button" class="btn btn-primary" data-ship="' + o.id + '">Pack &amp; ship</button>' : st === "Shipped" ? "" : '<span class="wm-hint">Pick first</span>') + "</td></tr>";
+      }).join("") + "</tbody></table></div></div>";
+  }
+
+  function viewInventory(r) {
+    return head("Inventory") + '<div class="wm-panel"><p class="wm-hint">On hand in each bin, plus cartons received but still waiting at dock R1. Updates live as your classmates work.</p>' +
+      '<div class="wm-scroll"><table class="wm-table"><thead><tr><th>SKU</th><th>Description</th><th>Bin</th><th>In bin</th><th>At dock R1</th></tr></thead><tbody>' +
       SKUS.map(function (s) {
-        var n = r.stock[s.code];
-        return "<tr><td class=\"wm-code\">" + s.code + "</td><td>" + esc(s.name) + "</td><td class=\"wm-code\">" + s.bin + "</td><td>" + n + (n < 5 ? ' <span class="wm-low">Low</span>' : "") + "</td></tr>";
-      }).join("") + "</tbody>";
+        return '<tr><td class="wm-code">' + s.code + "</td><td>" + esc(s.name) + '</td><td class="wm-code">' + s.bin + "</td><td>" + r.bin[s.code] +
+          (r.bin[s.code] < 5 ? " " + tag("Low") : "") + "</td><td>" + (r.dock[s.code] || "") + "</td></tr>";
+      }).join("") + "</tbody></table></div></div>";
   }
 
-  function describe(e, res) {
-    var order = orderById(e.p, e.order), isIn = order && order.type === "in";
-    if (res === "err") return "entered " + esc(e.sku || "?") + " × " + esc(e.qty) + " on " + esc(e.order) + " (wrong, not posted)";
-    if (res === "short") return "tried to pick " + e.qty + " × " + e.sku + " (" + esc(e.order) + "): not enough stock";
-    if (res === "dup") return "posted " + esc(e.order) + " line " + (e.line + 1) + " again (ignored)";
-    return (isIn ? "received " : "picked ") + e.qty + " × " + e.sku + " (" + e.order + ")";
+  function viewMap(r) {
+    return head("Warehouse map") + '<div class="wm-panel"><p class="wm-hint">Each box is a bin: aisle, rack, level (A-02-1 = aisle A, rack 02, level 1). The yellow bar shows how full it is.</p>' + map(r, {}) + "</div>";
   }
 
-  function renderActivity(r) {
-    var recent = r.keys.slice(-10).reverse();
-    $("activity").innerHTML = recent.length ? recent.map(function (k) {
-      var e = wlog[k];
-      return "<li><span class=\"wm-time\">" + clock(e.at) + "</span> <strong>" + esc(e.name) + "</strong> " + describe(e, r.results[k]) + "</li>";
-    }).join("") : "<li>No activity yet.</li>";
+  function viewLog(r) {
+    var mine = r.keys.filter(function (k) { return wlog[k].p === me.p; }).reverse();
+    return head("Transactions") + '<div class="wm-two"><div class="wm-panel"><h2>My transactions</h2>' +
+      (mine.length ? '<div class="wm-scroll"><table class="wm-table"><thead><tr><th>Time</th><th>Transaction</th></tr></thead><tbody>' +
+        mine.map(function (k) { return '<tr><td class="wm-code">' + clock(wlog[k].at) + "</td><td>" + describe(wlog[k], r.results[k], true) + "</td></tr>"; }).join("") +
+        "</tbody></table></div>" : '<p class="wm-hint">None yet.</p>') +
+      '</div><div class="wm-panel"><h2>Whole warehouse</h2>' + activity(r, 30) + "</div></div>";
+  }
+
+  // The warehouse floor: receiving dock, aisles of bins, shipping dock. mark: { bin: "go" } or { bin: step number }.
+  function map(r, mark) {
+    var cap = {};
+    SKUS.forEach(function (s) { cap[s.bin] = s; });
+    var h = '<div class="wm-scroll"><div class="wm-map" style="grid-template-columns: 56px repeat(' + LAYOUT.aisles.length + ', minmax(76px, 1fr)) 56px">' +
+      '<div class="wm-dock">Receiving dock R1</div>';
+    LAYOUT.aisles.forEach(function (a) {
+      h += '<div class="wm-aisle"><b>Aisle ' + a + "</b>";
+      for (var rack = LAYOUT.racks; rack >= 1; rack--) {
+        for (var lv = LAYOUT.levels; lv >= 1; lv--) {
+          var code = a + "-" + String(rack).padStart(2, "0") + "-" + lv, s = cap[code], m = mark[code];
+          var full = s ? Math.min(100, Math.round(r.bin[s.code] / Math.max(s.start * 2, 20) * 100)) : 0;
+          h += '<div class="wm-bin' + (s ? "" : " wm-empty") + (m === "go" ? " wm-go" : "") + (typeof m === "number" ? " wm-step" : "") + '"' +
+            (typeof m === "number" ? ' data-step="' + m + '"' : "") + '><span class="wm-code">' + code + "</span>" +
+            (s ? "<span>" + s.code + " · " + r.bin[s.code] + '</span><span class="wm-fill" style="width:' + full + '%"></span>' : "<span>empty</span>") + "</div>";
+        }
+      }
+      h += "</div>";
+    });
+    return h + '<div class="wm-dock">Shipping dock S1</div></div></div>';
+  }
+
+  function describe(e, res, mine) {
+    var who = mine ? "" : "<strong>" + esc(e.name) + "</strong> ";
+    if (res === "err" || e.t === "err") return who + "<span class=\"wm-hint\">refused by the system" + (e.why ? ": " + esc(e.why) : "") + "</span>";
+    if (res === "short") return who + "tried to pick " + e.qty + " × " + e.sku + " from " + e.bin + " (" + e.doc + "): not enough in the bin";
+    if (res === "dup") return who + "repeated " + e.doc + " (ignored)";
+    if (e.t === "rcv") return who + "received " + e.qty + " × " + e.sku + " (" + e.doc + ") at dock R1";
+    if (e.t === "put") return who + "put away " + e.qty + " × " + e.sku + " to " + e.bin;
+    if (e.t === "pick") return who + "picked " + e.qty + " × " + e.sku + " from " + e.bin + " (" + e.doc + ")";
+    if (e.t === "ship") return who + "shipped " + e.doc + " from dock S1";
+    return who + esc(e.t);
+  }
+  function activity(r, n) {
+    var recent = r.keys.slice(-n).reverse();
+    return recent.length ? '<ul class="wm-activity">' + recent.map(function (k) {
+      return '<li><span class="wm-time">' + clock(wlog[k].at) + "</span> " + describe(wlog[k], r.results[k], false) + "</li>";
+    }).join("") + "</ul>" : '<p class="wm-hint">No activity yet.</p>';
+  }
+
+  // Check an entry like a WMS would, then post it. Refused entries are logged too, for the lecturer.
+  function submitStep(step, docId) {
+    var r = replay(wlog), d = r.done[me.p], t = tasks(r);
+    var sku = ($("fSku") ? $("fSku").value : "").trim().toUpperCase(), qty = $("fQty") ? Number($("fQty").value) : 0;
+    var bin = ($("fBin") ? $("fBin").value : "").trim().toUpperCase();
+    var entry = { t: step, p: me.p, name: me.name, doc: docId, line: 0, sku: sku, qty: isFinite(qty) ? qty : 0, bin: bin, at: SERVER_TIME };
+    var why = "", okText = "", shortText = "";
+    var doc = docById(me.p, docId);
+    if (step === "rcv") {
+      var i = -1;
+      doc.lines.forEach(function (l, n) { if (i < 0 && l[0] === sku && !d[doc.id + "/" + n + "/rcv"]) i = n; });
+      if (i < 0) why = "SKU " + (sku || "(blank)") + " is not an open line on " + doc.id + ".";
+      else if (qty !== doc.lines[i][1]) why = "Quantity " + qty + " doesn't match the open quantity on line " + (i + 1) + " (" + doc.lines[i][1] + "). Count again.";
+      entry.line = Math.max(i, 0);
+      okText = "Received " + qty + " × " + sku + " on " + doc.id + ". It's waiting at dock R1 for put-away.";
+    } else if (step === "put") {
+      var x = t.put.filter(function (y) { return y.key === sel; })[0], s = skuByCode(x.doc.lines[x.line][0]);
+      entry.doc = x.doc.id;
+      entry.line = x.line;
+      entry.sku = s.code;
+      entry.qty = x.doc.lines[x.line][1];
+      if (bin !== s.bin) why = "Bin " + (bin || "(blank)") + " doesn't hold " + s.code + ". Put it in " + s.bin + ".";
+      okText = "Put away " + entry.qty + " × " + s.code + " to " + s.bin + ". Bin now holds " + (r.bin[s.code] + entry.qty) + ".";
+    } else if (step === "pick") {
+      var k = -1;
+      doc.lines.forEach(function (l, n) { if (k < 0 && l[0] === sku && !d[doc.id + "/" + n + "/pick"]) k = n; });
+      var ps = skuByCode(sku);
+      if (k < 0) why = "SKU " + (sku || "(blank)") + " is not an open line on " + doc.id + ".";
+      else if (bin !== ps.bin) why = "Bin " + (bin || "(blank)") + " doesn't hold " + sku + ". Pick it from " + ps.bin + ".";
+      else if (qty !== doc.lines[k][1]) why = "Quantity " + qty + " doesn't match the pick quantity for " + sku + " (" + doc.lines[k][1] + ").";
+      else if (r.bin[sku] < qty) {
+        msg = { seq: ++msgSeq, kind: "warn", text: "Bin " + bin + " has only " + r.bin[sku] + " of " + sku + " (a classmate picked from it). Wait for a delivery to be put away, then try again." };
+        renderStudent();
+        return;
+      }
+      entry.line = Math.max(k, 0);
+      okText = "Picked " + qty + " × " + sku + " from " + bin + " for " + doc.id + ".";
+      shortText = "Bin " + bin + " ran out of " + sku + ": a classmate picked it first. Wait for a delivery, then try again.";
+    } else if (step === "ship") {
+      entry.sku = "";
+      okText = doc.id + " packed and shipped from dock S1 to " + doc.partner + ".";
+    }
+    if (why) {
+      entry.t = "err";
+      entry.why = why;
+      msg = { seq: ++msgSeq, kind: "warn", text: why };
+    } else {
+      msg = { seq: ++msgSeq, kind: "info", text: "Saving…" };
+    }
+    // A valid entry clears the boxes straight away, ready for the next line; they come back if saving fails.
+    var typed = {};
+    if (!why) ["fSku", "fQty", "fBin"].forEach(function (id) { if ($(id)) { typed[id] = $(id).value; $(id).value = ""; } });
+    renderStudent();
+    send("POST", base() + "/log/w" + me.w, entry).then(function (res) {
+      if (!why) pending[res.name] = { okText: okText, shortText: shortText };
+      renderStudent();
+    }, function (err) {
+      msg = { seq: ++msgSeq, kind: "warn", text: err.message === "refused" ? "Not saved: the class is closed (open " + openText(info) + ")." : err.message };
+      renderStudent();
+      Object.keys(typed).forEach(function (id) { if ($(id) && !$(id).value) $(id).value = typed[id]; });
+    });
   }
 
   function setupStudent() {
-    $("orderList").addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-order]");
-      if (!btn) return;
-      selectedOrder = btn.getAttribute("data-order");
-      lastResult = "";
+    $("wmNav").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-view]");
+      if (!b) return;
+      view = b.getAttribute("data-view");
+      sel = "";
+      msg = null;
       renderStudent();
-      $("lineSku").value = "";
-      $("lineQty").value = "";
-      if (!$("lineForm").hidden) $("lineSku").focus();
     });
-    $("lineForm").addEventListener("submit", function (e) {
-      e.preventDefault();
-      // Like scanning a carton: the SKU code finds the line it belongs to, then the quantity must match.
-      var o = orderById(me.p, selectedOrder), r = replay(wlog);
-      var sku = $("lineSku").value.trim().toUpperCase(), qty = Number($("lineQty").value);
-      var i = -1;
-      o.lines.forEach(function (l, n) { if (i < 0 && l[0] === sku && !r.done[me.p][o.id + "/" + n]) i = n; });
-      var line = o.lines[i];
-      var entry = { p: me.p, name: me.name, order: o.id, line: Math.max(i, 0), sku: sku, qty: qty, at: SERVER_TIME };
-      var match = !!line && qty === line[1];
-      if (!match) {
-        entry.t = "err";
-        lastResult = !line
-          ? "That SKU code isn't on a line still to do in this order. Look up the product's code in the stock list."
-          : "That quantity doesn't match the line for " + sku + ". Check the order and count again.";
-      } else {
-        entry.t = o.type;
-        if (o.type === "out" && r.stock[sku] < qty) {
-          lastResult = "Not enough stock of " + sku + " to pick " + qty + ". Wait for a delivery, then try again.";
-          renderStudent();
-          return;
-        }
-        lastResult = "Posting…";
-      }
-      $("postBtn").disabled = true;
-      send("POST", base() + "/log/w" + me.w, entry).then(function (res) {
-        if (match) pending[res.name] = { okText: (o.type === "in" ? "Received " : "Picked ") + qty + " × " + sku + ". Stock updated." };
-        $("lineSku").value = "";
-        $("lineQty").value = "";
-        renderStudent();
-      }, function (err) {
-        lastResult = err.message === "refused" ? "Not saved: the class is closed (open " + openText(info) + ")." : err.message;
-        renderStudent();
-      }).then(function () { $("postBtn").disabled = false; $("lineSku").focus(); });
+    $("view").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-go], [data-doc], [data-sel], [data-ship]");
+      if (!b) return;
+      if (b.hasAttribute("data-ship")) { sel = b.getAttribute("data-ship"); submitStep("ship", sel); return; }
+      if (b.hasAttribute("data-go")) view = b.getAttribute("data-go");
+      sel = b.getAttribute("data-doc") || b.getAttribute("data-sel") || "";
+      msg = null;
       renderStudent();
+      var first = document.querySelector("#view form input");
+      if (first) first.focus();
+    });
+    $("view").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var step = e.target.getAttribute("data-step");
+      submitStep(step, step === "put" ? "" : sel.split("/")[0]);
     });
     $("leaveStudent").addEventListener("click", function () { leave(true); });
   }
@@ -540,7 +833,7 @@
       for (var p = 1; p <= PLACES; p++) {
         var s = c.seats && c.seats["w" + w] && c.seats["w" + w]["p" + p];
         if (!s) continue;
-        rows.push({ w: w, p: p, name: s.name, lines: linesDone(r, p), orders: ordersDone(r, p), errors: r.errors[p], first: r.first[p], last: r.last[p] });
+        rows.push({ w: w, p: p, name: s.name, steps: r.steps[p], docs: docsClosed(r, p), errors: r.errors[p], first: r.first[p], last: r.last[p] });
       }
     }
     return rows;
@@ -554,26 +847,26 @@
     $("tLink").value = location.origin + location.pathname + "?code=" + me.code;
     $("tOpen").textContent = (now < c.info.start ? "Opens " : now > c.info.end ? "Closed. Was open " : "Open ") + openText(c.info) +
       (now < c.info.start ? ". Students can't join before then." : now > c.info.end ? "." : ". Students can join and work now.");
-    var rows = studentRows(c), finished = rows.filter(function (s) { return s.lines === LINES_EACH; }).length;
-    $("tCounts").textContent = rows.length + " student" + (rows.length === 1 ? "" : "s") + " joined · " + finished + " finished all " + LINES_EACH +
-      " lines · " + c.info.warehouses + " warehouses (room for " + c.info.warehouses * PLACES + ")";
+    var rows = studentRows(c), finished = rows.filter(function (s) { return s.steps === STEPS_EACH; }).length;
+    $("tCounts").textContent = rows.length + " student" + (rows.length === 1 ? "" : "s") + " joined · " + finished + " finished all " + STEPS_EACH +
+      " steps · " + c.info.warehouses + " warehouses (room for " + c.info.warehouses * PLACES + ")";
     var html = "";
     for (var w = 1; w <= c.info.warehouses; w++) {
       var log = (c.log && c.log["w" + w]) || {}, r = replay(log);
       var mine = rows.filter(function (s) { return s.w === w; });
       html += '<li class="wm-card wm-house"><h3>Warehouse ' + w + "</h3>" +
-        '<div class="wm-scroll"><table class="wm-table"><thead><tr><th>Place</th><th>Student</th><th>Lines</th><th>Orders</th><th>Errors</th><th>Last activity</th></tr></thead><tbody>' +
+        '<div class="wm-scroll"><table class="wm-table"><thead><tr><th>Place</th><th>Student</th><th>Steps</th><th>Documents closed</th><th>Refused entries</th><th>Last activity</th></tr></thead><tbody>' +
         (mine.length ? mine.map(function (s) {
-          return "<tr><td>" + s.p + "</td><td>" + esc(s.name) + "</td><td>" + s.lines + "/" + LINES_EACH + (s.lines === LINES_EACH ? " ✓" : "") +
-            "</td><td>" + s.orders + "/" + ORDERS_EACH + "</td><td>" + s.errors + "</td><td>" + stamp(s.last) + "</td></tr>";
+          return "<tr><td>" + s.p + "</td><td>" + esc(s.name) + "</td><td>" + s.steps + "/" + STEPS_EACH + (s.steps === STEPS_EACH ? " ✓" : "") +
+            "</td><td>" + s.docs + "/" + DOCS_EACH + "</td><td>" + s.errors + "</td><td>" + stamp(s.last) + "</td></tr>";
         }).join("") : '<tr><td colspan="6">No students yet.</td></tr>') + "</tbody></table></div>" +
-        '<details class="wm-more"><summary>Stock now</summary><div class="wm-scroll"><table class="wm-table"><thead><tr><th>SKU code</th><th>Product</th><th>On hand</th></tr></thead><tbody>' +
-        SKUS.map(function (s) { return "<tr><td class=\"wm-code\">" + s.code + "</td><td>" + esc(s.name) + "</td><td>" + r.stock[s.code] + "</td></tr>"; }).join("") +
-        "</tbody></table></div></details>" +
+        '<details class="wm-more"><summary>Stock now</summary><div class="wm-scroll"><table class="wm-table"><thead><tr><th>SKU</th><th>Product</th><th>Bin</th><th>In bin</th><th>At dock R1</th></tr></thead><tbody>' +
+        SKUS.map(function (s) {
+          return '<tr><td class="wm-code">' + s.code + "</td><td>" + esc(s.name) + '</td><td class="wm-code">' + s.bin + "</td><td>" + r.bin[s.code] + "</td><td>" + (r.dock[s.code] || "") + "</td></tr>";
+        }).join("") + "</tbody></table></div></details>" +
         '<details class="wm-more"><summary>Latest activity</summary><ul class="wm-activity">' +
         (r.keys.length ? r.keys.slice(-8).reverse().map(function (k) {
-          var e = log[k];
-          return "<li><span class=\"wm-time\">" + stamp(e.at) + "</span> <strong>" + esc(e.name) + "</strong> " + describe(e, r.results[k]) + "</li>";
+          return '<li><span class="wm-time">' + stamp(log[k].at) + "</span> " + describe(log[k], r.results[k], false) + "</li>";
         }).join("") : "<li>No activity yet.</li>") + "</ul></details></li>";
     }
     $("houseGrid").innerHTML = html;
@@ -593,24 +886,22 @@
   function iso(ms) { return ms ? new Date(ms).toLocaleString("sv-SE") : ""; } // e.g. 2026-11-02 14:03:00, which spreadsheets read as a date
 
   function summaryCsv(c) {
-    var rows = [["Warehouse", "Place", "Student", "Lines done", "Lines total", "Orders done", "Orders total", "Errors", "First activity", "Last activity"]];
+    var rows = [["Warehouse", "Place", "Student", "Steps done", "Steps total", "Documents closed", "Documents total", "Refused entries", "First activity", "Last activity"]];
     studentRows(c).forEach(function (s) {
-      rows.push([s.w, s.p, s.name, s.lines, LINES_EACH, s.orders, ORDERS_EACH, s.errors, iso(s.first), iso(s.last)]);
+      rows.push([s.w, s.p, s.name, s.steps, STEPS_EACH, s.docs, DOCS_EACH, s.errors, iso(s.first), iso(s.last)]);
     });
     return csv(rows);
   }
 
   function logCsv(c) {
-    var rows = [["Time", "Warehouse", "Place", "Student", "Order", "Line", "Type", "SKU entered", "Qty entered", "Result", "Stock after"]];
-    var label = { ok: "Posted", err: "Error (wrong SKU or qty)", short: "Not enough stock", dup: "Duplicate (ignored)" };
+    var rows = [["Time", "Warehouse", "Place", "Student", "Step", "Document", "Line", "SKU entered", "Qty entered", "Bin entered", "Result", "System message"]];
+    var step = { rcv: "Receive", put: "Put away", pick: "Pick", ship: "Pack & ship", err: "Refused" };
+    var label = { ok: "Done", err: "Refused", short: "Not enough in bin", dup: "Repeat (ignored)" };
     for (var w = 1; w <= c.info.warehouses; w++) {
-      var log = (c.log && c.log["w" + w]) || {}, keys = Object.keys(log).sort(), stock = {}, r = replay(log);
-      SKUS.forEach(function (s) { stock[s.code] = s.start; });
-      keys.forEach(function (k) {
-        var e = log[k], res = r.results[k], order = orderById(e.p, e.order);
-        if (res === "ok") stock[e.sku] += order.type === "in" ? e.qty : -e.qty;
-        rows.push([iso(e.at), w, e.p, e.name, e.order, e.line + 1, order ? (order.type === "in" ? "Receive" : "Ship") : "", e.sku, e.qty, label[res],
-          res === "ok" ? stock[e.sku] : ""]);
+      var log = (c.log && c.log["w" + w]) || {}, r = replay(log);
+      r.keys.forEach(function (k) {
+        var e = log[k], res = r.results[k];
+        rows.push([iso(e.at), w, e.p, e.name, step[e.t] || e.t, e.doc, e.t === "ship" ? "" : e.line + 1, e.sku, e.t === "ship" ? "" : e.qty, e.bin, label[res], e.why || ""]);
       });
     }
     return csv(rows);
