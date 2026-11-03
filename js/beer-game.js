@@ -31,17 +31,67 @@
     distributor: '<path d="M3 8h16v14H3zM19 13h6l4 5v4H19z"/><circle cx="9" cy="24" r="2.5"/><circle cx="24" cy="24" r="2.5"/>',
     wholesaler: '<path d="M3 12 16 5l13 7v16H3z"/><path d="M8 28V16h16v12M8 20h16M8 24h16"/>',
     retailer: '<path d="M5 13v15h22V13M3 13l3-8h20l3 8z"/><path d="M13 28v-8h6v8"/>',
-    shoppers: '<circle cx="11" cy="11" r="4"/><circle cx="22" cy="12" r="3"/><path d="M3 27c0-5 4-8 8-8s8 3 8 8M18 21c4-1 9 1 10 6"/>',
-    arrived: '<path d="M6 14h20v14H6z"/><path d="M16 3v8M12 7l4 4 4-4"/>',
-    order: '<path d="M8 5h16v23H8z"/><path d="M12 11h8M12 16h8M12 21h5"/>',
-    shipped: '<path d="M6 14h20v14H6z"/><path d="M16 11V3M12 7l4-4 4 4"/>',
-    owed: '<circle cx="16" cy="16" r="12"/><path d="M16 9v8M16 21v1"/>',
-    stock: '<path d="M4 28h24M6 28V18h9v10M17 28V12h9v16M8 18v-6h9"/>',
-    onway: '<path d="M3 8h16v14H3zM19 13h6l4 5v4H19z"/><circle cx="9" cy="24" r="2.5"/><circle cx="24" cy="24" r="2.5"/>',
-    cost: '<circle cx="16" cy="16" r="12"/><path d="M20 11.5c-1-1.5-6-2-6.5.8C13 16 20 15 19.5 19c-.5 3-5.5 2.5-7 .8M16 7v3M16 22v3"/>'
+    shoppers: '<circle cx="11" cy="11" r="4"/><circle cx="22" cy="12" r="3"/><path d="M3 27c0-5 4-8 8-8s8 3 8 8M18 21c4-1 9 1 10 6"/>'
   };
   function icon(name) {
     return '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + "</svg>";
+  }
+
+  /* ---------- Pictures for the weekly numbers ---------- */
+
+  // A picture shows a range, not an exact count: 1 crate = 1–10 cases, 2 = 11–20, 3 = 21–40, 4 = 41–80, 5 = 81 or more.
+  var CRATE_STEPS = [10, 20, 40, 80];
+  var COIN_STEPS = [50, 150, 400, 1000]; // dollars: 1 coin = up to $50, … 5 coins = over $1,000
+  function level(n, steps) {
+    if (n <= 0) return 0;
+    for (var i = 0; i < steps.length; i++) if (n <= steps[i]) return i + 1;
+    return steps.length + 1;
+  }
+
+  function svg(viewBox, body, label) {
+    return '<svg class="bg-pic" viewBox="' + viewBox + '" role="img" aria-label="' + label + '">' + body + "</svg>";
+  }
+  // One beer crate: yellow box with slats. "empty" draws a dashed outline (cases you still owe).
+  function crate(x, y, w, h, empty) {
+    var style = empty ? 'fill="none" stroke-dasharray="4 3"' : 'class="bg-fill"';
+    var slats = empty ? "" : '<path d="M' + (x + w / 3) + " " + y + "v" + h + "M" + (x + 2 * w / 3) + " " + y + "v" + h + '"/>';
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="2" ' + style + "/>" + slats;
+  }
+  // A pile of up to 5 crates on the floor: 3 at the bottom, 2 on top.
+  var PILE = [[36, 40], [5, 40], [67, 40], [20, 17], [52, 17]];
+  function pile(n, empty, label) {
+    var k = level(n, CRATE_STEPS), body = '<path class="bg-floor" d="M2 63h96"/>';
+    if (k === 2) body += crate(20, 40, 28, 22, empty) + crate(52, 40, 28, 22, empty); // two crates sit side by side
+    else for (var i = 0; i < k; i++) body += crate(PILE[i][0], PILE[i][1], 28, 22, empty);
+    return svg("0 0 100 64", body, label);
+  }
+  // A truck whose trailer holds up to 5 crates.
+  function truck(n, label) {
+    var k = level(n, CRATE_STEPS), body = "";
+    var slots = [[7, 33], [26, 33], [45, 33], [16, 16], [35, 16]];
+    for (var i = 0; i < k; i++) body += crate(slots[i][0], slots[i][1], 17, 16, false);
+    body += '<path d="M3 51V10h63v41z" fill="none"/>' +
+      '<path d="M66 22h19l12 14v15H66z" fill="none"/><path d="M71 27h12l7 9H71z" fill="none"/>' +
+      '<circle cx="17" cy="55" r="6" class="bg-wheel"/><circle cx="52" cy="55" r="6" class="bg-wheel"/><circle cx="84" cy="55" r="6" class="bg-wheel"/>';
+    return svg("0 0 100 64", body, label);
+  }
+  // A stack of up to 5 coins.
+  function coins(dollars, label) {
+    var k = level(dollars, COIN_STEPS), body = '<path class="bg-floor" d="M16 63h68"/>';
+    for (var i = 0; i < k; i++) {
+      var y = 54 - i * 10;
+      body += '<path class="bg-fill" d="M26 ' + y + 'v5a24 6 0 0 0 48 0v-5"/><ellipse class="bg-fill" cx="50" cy="' + y + '" rx="24" ry="6"/>';
+    }
+    return svg("0 0 100 64", body, label);
+  }
+  // A purchase order: a sheet of paper headed "PO" with the quantity written on it.
+  function purchaseOrder(qty, label) {
+    var body = '<path d="M26 2h40l8 8v52H26z" class="bg-paper"/><path d="M66 2v8h8" fill="none"/>' +
+      '<rect x="26" y="2" width="40" height="14" class="bg-fill"/>' +
+      '<text x="46" y="13" class="bg-po-head">PO</text>' +
+      '<text x="50" y="44" class="bg-po-qty">' + qty + "</text>" +
+      '<text x="50" y="56" class="bg-po-unit">cases</text>';
+    return svg("0 0 100 64", body, label);
   }
 
   // Shoppers buy 4 cases a week, then suddenly 8 from week 5 onwards.
@@ -645,7 +695,7 @@
     if (!me.role) {
       $("playTitle").textContent = gameTitle();
       $("spectator").hidden = false;
-      ["numbers", "orderForm", "cpuNote", "myHistoryBox"].forEach(function (id) { $(id).hidden = true; });
+      ["numbers", "picKey", "orderForm", "cpuNote", "myHistoryBox"].forEach(function (id) { $(id).hidden = true; });
       renderWaiting(g);
       return;
     }
@@ -654,18 +704,23 @@
     $("playTitle").textContent = "You are the " + r.name;
 
     var asker = i === 0 ? "Shoppers want" : "The " + ROLES[i - 1].name + " ordered";
+    var onWay = b.arriving1 + b.arriving2;
+    // [label, picture, number shown under it, explanation]. The picture shows a range; the number is exact.
     var items = [
-      ["arrived", "Beer arrived", b.received, "cases delivered to you this week"],
-      ["order", "New order", b.demand, asker + " this many cases"],
-      ["shipped", "Shipped out", b.shipped, i === 0 ? "cases sold to shoppers" : "cases sent to the " + ROLES[i - 1].name],
-      ["owed", "Still owed", b.owed, "orders you couldn't fill yet. Costs " + money(OWED_COST) + " per case each week"],
-      ["stock", "In stock", b.stock, "cases on your shelves. Costs " + money(STOCK_COST) + " per case each week"],
-      ["onway", "On the way to you", b.arriving1 + b.arriving2, b.arriving1 + " next week, " + b.arriving2 + " the week after"],
-      ["cost", "Your costs so far", money(b.total), "stock and owed costs from past weeks"]
+      ["Beer arrived", pile(b.received, false, b.received + " cases arrived"), b.received, "cases delivered to you this week"],
+      ["New order", purchaseOrder(b.demand, "Purchase order for " + b.demand + " cases"), b.demand, asker + " this many cases", true],
+      ["Shipped out", pile(b.shipped, false, b.shipped + " cases shipped"), b.shipped, i === 0 ? "cases sold to shoppers" : "cases sent to the " + ROLES[i - 1].name],
+      ["Still owed", pile(b.owed, true, b.owed + " cases still owed"), b.owed, "orders you couldn't fill yet. Costs " + money(OWED_COST) + " per case each week"],
+      ["In stock", pile(b.stock, false, b.stock + " cases in stock"), b.stock, "cases on your shelves. Costs " + money(STOCK_COST) + " per case each week"],
+      ["On the way to you", truck(onWay, onWay + " cases on the way"), onWay, b.arriving1 + " next week, " + b.arriving2 + " the week after"],
+      ["Your costs so far", coins(b.total, money(b.total) + " spent so far"), money(b.total), "stock and owed costs from past weeks"]
     ];
     $("numbers").hidden = false;
+    $("picKey").hidden = false;
     $("numbers").innerHTML = items.map(function (it) {
-      return '<div><dt><span class="bg-num-icon">' + icon(it[0]) + "</span>" + it[1] + "</dt><dd>" + it[2] + '</dd><dd class="bg-hint">' + it[3] + "</dd></div>";
+      // The purchase order already shows its number on the paper, so the number below it is for screen readers only.
+      return "<div><dt>" + it[0] + '</dt><dd class="bg-pic-box" aria-hidden="true">' + it[1] + "</dd>" +
+        '<dd class="bg-big-num' + (it[4] ? " bg-sr-only" : "") + '">' + it[2] + '</dd><dd class="bg-hint">' + it[3] + "</dd></div>";
     }).join("");
 
     var cpuPlays = !!(g.cpu && g.cpu[me.role]);

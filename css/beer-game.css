@@ -203,6 +203,7 @@
 }
 
 .bg-numbers div {
+  position: relative;
   padding: 12px 14px;
   border: 2px solid var(--edge);
   border-radius: 4px;
@@ -210,28 +211,78 @@
 }
 
 .bg-numbers dt {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   font-size: 0.875rem;
   font-weight: 600;
 }
 
-/* Small icon badge on each weekly number: yellow on charcoal, like a warehouse sign. */
-.bg-num-icon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  background: var(--header-bg);
-  color: var(--header-text);
+/* Pictures for the weekly numbers: crates, a truck, coins and a purchase order. */
+.bg-pic-box {
+  margin: 6px 0 2px;
 }
 
-.bg-num-icon svg {
-  width: 18px;
-  height: 18px;
+.bg-pic {
+  display: block;
+  width: 100%;
+  max-width: 120px;
+  height: 77px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.bg-pic .bg-fill {
+  fill: var(--accent);
+}
+
+.bg-pic .bg-paper {
+  fill: var(--surface);
+}
+
+.bg-pic .bg-wheel {
+  fill: var(--surface);
+}
+
+.bg-pic .bg-floor {
+  stroke: var(--text-muted);
+  stroke-width: 2;
+}
+
+.bg-pic text {
+  fill: currentColor;
+  stroke: none;
+  text-anchor: middle;
+  font-family: inherit;
+}
+
+.bg-pic .bg-po-head {
+  fill: var(--on-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.bg-pic .bg-po-qty {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.bg-pic .bg-po-unit {
+  font-size: 9px;
+}
+
+.bg-pic-key {
+  font-size: 0.8125rem;
+}
+
+/* Hidden on screen but still read out by screen readers. */
+.bg-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 /* Supply chain picture: factory → distributor → wholesaler → retailer → shoppers. */
@@ -350,6 +401,10 @@
 }
 
 .bg-numbers dd {
+  margin: 0;
+}
+
+.bg-numbers dd.bg-big-num {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;

@@ -84,7 +84,13 @@ warehousing and supply chain tools. Plain language throughout.
      - **Practice alone**: no database needed.
      Each week shows a picture of the supply chain (Factory → Distributor
      → Wholesaler → Retailer → Shoppers) with the player's business
-     highlighted, and an icon on each weekly number.
+     highlighted. Each weekly number has a picture above it that shows a
+     range, with the exact number below: crate piles for beer arrived,
+     shipped out and in stock (1 crate = 1–10 cases, 2 = 11–20, 3 = 21–40,
+     4 = 41–80, 5 = more), dashed crates for cases still owed, a truck
+     carrying crates for beer on the way, a coin stack for costs, and a
+     "PO" paper with the quantity for the new order. A key explains the
+     ranges.
      Costs per business per week: $1 per case in stock, $2 per case still
      owed (`STOCK_COST` and `OWED_COST` in `js/beer-game.js`).
      Scoring is cost only (lower is better): a score card with the team
