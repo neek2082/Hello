@@ -77,6 +77,8 @@ warehousing and supply chain tools. Plain language throughout.
        the board keeps the class, and the start page offers to go back.
      - **Play with friends**: one game, shared by code.
      - **Practice alone**: no database needed.
+     Costs per business per week: $1 per case in stock, $2 per case still
+     owed (`STOCK_COST` and `OWED_COST` in `js/beer-game.js`).
      Scoring is cost only (lower is better): a score card with the team
      cost, each business's cost and rank, the team rank, and the lowest
      team cost; then a ranking by team cost with each business's cost,

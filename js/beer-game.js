@@ -10,8 +10,8 @@
   var WEEKS = 20;
   var START_STOCK = 12;
   var START_FLOW = 4;   // cases a week moving through the chain when the game starts
-  var STOCK_COST = 0.5; // $ per case in stock, per week
-  var OWED_COST = 1;    // $ per case owed but not yet delivered, per week
+  var STOCK_COST = 1; // $ per case in stock, per week
+  var OWED_COST = 2;  // $ per case owed but not yet delivered, per week
   var MAX_GAMES = 25;   // games in one class session
   var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   var SAVE_KEY = "beerGame";
@@ -421,6 +421,7 @@
   }
 
   function setupIntro() {
+    $("costRule").textContent = "Every case on your shelves costs " + money(STOCK_COST) + " a week. Every case you still owe costs " + money(OWED_COST) + " a week.";
     $("practiceRole").innerHTML = ROLES.map(function (r) { return '<option value="' + r.key + '">' + r.name + "</option>"; }).join("");
     var options = "";
     for (var n = 1; n <= MAX_GAMES; n++) options += '<option value="' + n + '"' + (n === 8 ? " selected" : "") + ">" + n + " (up to " + n * 4 + " students)</option>";
@@ -628,8 +629,8 @@
       ["Beer arrived", b.received, "cases delivered to you this week"],
       ["New order", b.demand, asker + " this many cases"],
       ["Shipped out", b.shipped, i === 0 ? "cases sold to shoppers" : "cases sent to the " + ROLES[i - 1].name],
-      ["Still owed", b.owed, "orders you couldn't fill yet. Costs $1 per case each week"],
-      ["In stock", b.stock, "cases on your shelves. Costs $0.50 per case each week"],
+      ["Still owed", b.owed, "orders you couldn't fill yet. Costs " + money(OWED_COST) + " per case each week"],
+      ["In stock", b.stock, "cases on your shelves. Costs " + money(STOCK_COST) + " per case each week"],
       ["On the way to you", b.arriving1 + b.arriving2, b.arriving1 + " next week, " + b.arriving2 + " the week after"],
       ["Your costs so far", money(b.total), "stock and owed costs from past weeks"]
     ];
