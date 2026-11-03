@@ -8,7 +8,9 @@
 - One exception, approved for the Beer Game and the WMS only: online data is
   kept in a free Firebase Realtime Database (Spark plan). It is reached with
   plain web requests (`fetch` and `EventSource`), not Google's code library.
-  Its address is `DB_URL` at the top of `js/beer-game.js` and `js/wms.js`;
+  Each tool has its own project, both in Singapore (asia-southeast1): the
+  Beer Game uses `beer-game-data`, the WMS uses `my-second-project-72735`.
+  The address is `DB_URL` at the top of `js/beer-game.js` and `js/wms.js`;
   when the Beer Game's is empty, only practice mode works.
 
 ## Project Structure

@@ -3,8 +3,8 @@
 // a warehouse (6 students each) and a place (1–6), which decides their 3 receiving and 3 shipping orders.
 // Data lives in the same Firebase Realtime Database as the Beer Game, reached with plain web requests (no library).
 (function () {
-  // Address of the Firebase Realtime Database (project "beer-game-data", Singapore). Shared with the Beer Game.
-  var DB_URL = "https://beer-game-data-default-rtdb.asia-southeast1.firebasedatabase.app";
+  // Address of the WMS's own Firebase Realtime Database (project "my-second-project-72735", Singapore).
+  var DB_URL = "https://my-second-project-72735-default-rtdb.asia-southeast1.firebasedatabase.app";
 
   var MAX_WAREHOUSES = 5;
   var PLACES = 6;       // students per warehouse
