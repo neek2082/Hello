@@ -54,7 +54,12 @@ warehousing and supply chain tools. Plain language throughout.
 1. **Portal + first tool**
    - [x] Portal: homepage, shared header with theme toggle, and a
      placeholder card "Tool 1 — coming soon" that opens and returns.
-     Styling is neutral for now; the visual design comes later.
+   - [x] Visual design "Warehouse floor": charcoal and safety yellow,
+     like warehouse signage. Charcoal header with a yellow stripe and a
+     house logo on every page, a yellow banner on the homepage (charcoal
+     in dark), cards with thick outlines and solid offset shadows, and
+     simple line icons (inline SVG, drawn in the text color). All colors
+     are variables at the top of `css/style.css`.
    - [x] First tool: "Site Chooser Plus". In: three warehouse sites'
      distances, needs and prices, plus ticks for sustainability,
      governance and labour. Out: yearly cost per site, how much each
@@ -77,6 +82,9 @@ warehousing and supply chain tools. Plain language throughout.
        the board keeps the class, and the start page offers to go back.
      - **Play with friends**: one game, shared by code.
      - **Practice alone**: no database needed.
+     Each week shows a picture of the supply chain (Factory → Distributor
+     → Wholesaler → Retailer → Shoppers) with the player's business
+     highlighted, and an icon on each weekly number.
      Costs per business per week: $1 per case in stock, $2 per case still
      owed (`STOCK_COST` and `OWED_COST` in `js/beer-game.js`).
      Scoring is cost only (lower is better): a score card with the team

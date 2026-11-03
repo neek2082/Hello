@@ -10,35 +10,43 @@
 <body>
   <header class="site-header">
     <div class="container">
-      <a class="site-name" href="index.html">Warehousing Tools</a>
+      <a class="site-name" href="index.html"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" aria-hidden="true"><path d="M4 13 16 5l12 8v14H4z"/><path d="M10 27v-9h12v9M10 22h12"/></svg>Warehousing Tools</a>
       <button type="button" class="theme-toggle">Dark theme</button>
     </div>
   </header>
 
-  <main class="container">
-    <h1>Warehousing Tools</h1>
-    <p class="intro">
-      Small, free tools for all things warehousing. Pick a tool to try it out.
-    </p>
+  <section class="hero">
+    <div class="container">
+      <h1>Warehousing Tools</h1>
+      <p>Small, free tools for all things warehousing. Pick a tool to try it out.</p>
+    </div>
+  </section>
 
-    <!-- To add a tool: copy one <li> card and point it at tools/<tool-name>.html -->
+  <main class="container">
+    <!-- To add a tool: copy one <li> card, point it at tools/<tool-name>.html and draw an icon (32×32 lines) -->
     <ul class="tool-grid">
       <li>
         <a class="tool-card" href="tools/site-chooser-plus.html">
+          <span class="tool-icon"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M16 29s9-8.5 9-15a9 9 0 0 0-18 0c0 6.5 9 15 9 15z"/><circle cx="16" cy="14" r="3.5"/></svg></span>
           <h2 class="tool-card-title">Site Chooser Plus</h2>
           <p class="tool-card-desc">Pick the best of three warehouse sites by weighing cost, sustainability, governance and labour.</p>
+          <span class="tool-card-go">Open tool →</span>
         </a>
       </li>
       <li>
         <a class="tool-card" href="tools/beer-game.html">
+          <span class="tool-icon"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h24v16H4z"/><path d="M9 12V6M16 12V4M23 12V6M4 20h24"/></svg></span>
           <h2 class="tool-card-title">Beer Game</h2>
           <p class="tool-card-desc">Run one business in a beer supply chain with up to 3 friends online, and see how small changes snowball.</p>
+          <span class="tool-card-go">Open tool →</span>
         </a>
       </li>
       <li>
         <a class="tool-card" href="tools/wms.html">
+          <span class="tool-icon"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 10V5h5M23 5h5v5M28 22v5h-5M9 27H4v-5"/><path d="M9 10v12M13 10v12M17 10v12M20 10v12M24 10v12"/></svg></span>
           <h2 class="tool-card-title">Warehouse Practice (WMS)</h2>
           <p class="tool-card-desc">For classes: receive deliveries and ship store orders in a shared practice warehouse, with stock updating live.</p>
+          <span class="tool-card-go">Open tool →</span>
         </a>
       </li>
     </ul>

@@ -1,25 +1,43 @@
-/* Shared styles for every page. Neutral placeholder look: the visual design comes later. */
+/* Shared styles for every page. Look: "Warehouse floor": charcoal and safety yellow, like warehouse signage. */
 
 /* Colors live here as variables so the light and dark themes stay in one place. */
 :root {
-  --bg: #ffffff;
-  --surface: #f4f4f4;
-  --text: #1a1a1a;       /* 17.4:1 on --bg */
-  --text-muted: #555555; /* 7.5:1 on --bg, 6.8:1 on --surface */
-  --border: #767676;     /* 4.5:1 on --bg */
-  --focus: #1a1a1a;
-  --danger: #b3261e;     /* 6.6:1 on --bg; for buttons that remove things for good */
+  --bg: #f2f1ed;          /* page: warm concrete grey */
+  --surface: #ffffff;     /* cards and panels */
+  --text: #1d1d1b;        /* 15.6:1 on --bg, 17.3:1 on --surface */
+  --text-muted: #4d4c47;  /* 7.6:1 on --bg, 8.4:1 on --surface */
+  --border: #75736c;      /* 4.2:1 on --bg: table lines and form fields */
+  --edge: #1d1d1b;        /* thick card outlines */
+  --shadow: #1d1d1b;      /* the solid offset shadow under cards */
+  --accent: #ffd23f;      /* safety yellow */
+  --on-accent: #1d1d1b;   /* 13.3:1 on --accent */
+  --header-bg: #1d1d1b;
+  --header-text: #ffd23f; /* 13.3:1 on --header-bg */
+  --primary-bg: #1d1d1b;  /* main buttons: charcoal with yellow text */
+  --primary-text: #ffd23f;
+  --primary-hover: #3a3935;
+  --focus: #1d1d1b;
+  --danger: #b3261e;      /* 6.0:1 on --bg; for buttons that remove things for good */
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg: #121212;
-  --surface: #1f1f1f;
-  --text: #f0f0f0;       /* 16.4:1 on --bg */
-  --text-muted: #b5b5b5; /* 9.1:1 on --bg, 8.0:1 on --surface */
-  --border: #8a8a8a;     /* 5.4:1 on --bg */
-  --focus: #f0f0f0;
-  --danger: #ff8a80;     /* 9.0:1 on --bg */
+  --bg: #161614;
+  --surface: #22211e;
+  --text: #f2f1ed;        /* 16.6:1 on --bg, 14.6:1 on --surface */
+  --text-muted: #c4c2b9;  /* 10.6:1 on --bg, 9.3:1 on --surface */
+  --border: #8a8880;      /* 5.2:1 on --bg */
+  --edge: #8a8880;
+  --shadow: #000000;
+  --accent: #ffd23f;
+  --on-accent: #1d1d1b;
+  --header-bg: #0c0c0b;
+  --header-text: #ffd23f;
+  --primary-bg: #ffd23f;  /* main buttons: yellow with charcoal text */
+  --primary-text: #1d1d1b;
+  --primary-hover: #ffe27a;
+  --focus: #ffd23f;
+  --danger: #ff8a80;      /* 8.6:1 on --bg */
   color-scheme: dark;
 }
 
@@ -56,9 +74,11 @@ a {
   padding-right: 16px;
 }
 
-/* Header */
+/* Header: charcoal bar with yellow name and a yellow stripe underneath, on every page. */
 .site-header {
-  border-bottom: 1px solid var(--border);
+  background: var(--header-bg);
+  color: var(--header-text);
+  border-bottom: 4px solid var(--accent);
 }
 
 .site-header .container {
@@ -70,9 +90,44 @@ a {
 }
 
 .site-name {
-  font-weight: 700;
-  font-size: 1.125rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-weight: 800;
+  font-size: 1.0625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   text-decoration: none;
+}
+
+.site-name svg {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+.theme-toggle {
+  white-space: nowrap;
+}
+
+/* Phones: a slightly smaller name so the header stays on one line. */
+@media (max-width: 420px) {
+  .site-name {
+    gap: 8px;
+    font-size: 0.875rem;
+    letter-spacing: 0.03em;
+  }
+
+  .site-name svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .site-header .theme-toggle {
+    padding: 0 10px;
+    font-size: 0.875rem;
+  }
 }
 
 .site-name:hover {
@@ -82,12 +137,63 @@ a {
 .theme-toggle {
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid var(--header-text);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--header-text);
   font: inherit;
   cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.site-header :focus-visible {
+  outline-color: var(--accent);
+}
+
+/* Homepage banner: a full-width yellow band (charcoal in the dark theme). */
+.hero {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-bottom: 6px solid var(--edge);
+}
+
+:root[data-theme="dark"] .hero {
+  background: var(--surface);
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.hero .container {
+  padding-top: 40px;
+  padding-bottom: 36px;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+:root[data-theme="dark"] .hero h1 {
+  color: var(--accent);
+}
+
+.hero p {
+  margin: 0;
+  max-width: 40rem;
+  font-size: 1.0625rem;
+}
+
+@media (min-width: 600px) {
+  .hero h1 {
+    font-size: 2.5rem;
+  }
 }
 
 /* Main content */
@@ -139,28 +245,62 @@ h1 {
   }
 }
 
+/* Tool cards: thick outline with a solid offset shadow, like a label stuck on a crate. */
 .tool-card {
-  display: block;
+  display: grid;
+  gap: 10px;
+  align-content: start;
   height: 100%;
   padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 2px solid var(--edge);
+  border-radius: 4px;
   background: var(--surface);
+  box-shadow: 4px 4px 0 var(--shadow);
   text-decoration: none;
+}
+
+.tool-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--shadow);
 }
 
 .tool-card:hover .tool-card-title {
   text-decoration: underline;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .tool-card {
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+}
+
+.tool-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 4px;
+  background: var(--header-bg);
+  color: var(--header-text);
+}
+
+.tool-icon svg {
+  width: 30px;
+  height: 30px;
+}
+
 .tool-card-title {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 1.125rem;
 }
 
 .tool-card-desc {
   margin: 0;
   color: var(--text-muted);
+}
+
+.tool-card-go {
+  font-weight: 700;
 }
 
 .placeholder {
@@ -179,9 +319,9 @@ h1 {
 .btn {
   min-height: 44px;
   padding: 0 18px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border: 2px solid var(--edge);
+  border-radius: 4px;
+  background: var(--surface);
   color: var(--text);
   font: inherit;
   font-weight: 600;
@@ -189,18 +329,18 @@ h1 {
 }
 
 .btn:hover {
-  background: var(--surface);
+  background: var(--bg);
 }
 
 .btn-primary {
-  background: var(--text);
-  border-color: var(--text);
-  color: var(--bg);
+  background: var(--primary-bg);
+  border-color: var(--primary-bg);
+  color: var(--primary-text);
 }
 
 .btn-primary:hover {
-  background: var(--text-muted);
-  border-color: var(--text-muted);
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .btn.btn-danger {

@@ -25,6 +25,25 @@
     { key: "factory", name: "Factory", plural: "Factories", desc: "Brews the beer. Brewing takes 2 weeks." }
   ];
 
+  // Line icons (32×32), drawn in the text color so they work in both themes.
+  var ICONS = {
+    factory: '<path d="M4 28V14l7 4v-4l7 4v-4l7 4V5h3v23z"/><path d="M9 23h3M15 23h3M21 23h3"/>',
+    distributor: '<path d="M3 8h16v14H3zM19 13h6l4 5v4H19z"/><circle cx="9" cy="24" r="2.5"/><circle cx="24" cy="24" r="2.5"/>',
+    wholesaler: '<path d="M3 12 16 5l13 7v16H3z"/><path d="M8 28V16h16v12M8 20h16M8 24h16"/>',
+    retailer: '<path d="M5 13v15h22V13M3 13l3-8h20l3 8z"/><path d="M13 28v-8h6v8"/>',
+    shoppers: '<circle cx="11" cy="11" r="4"/><circle cx="22" cy="12" r="3"/><path d="M3 27c0-5 4-8 8-8s8 3 8 8M18 21c4-1 9 1 10 6"/>',
+    arrived: '<path d="M6 14h20v14H6z"/><path d="M16 3v8M12 7l4 4 4-4"/>',
+    order: '<path d="M8 5h16v23H8z"/><path d="M12 11h8M12 16h8M12 21h5"/>',
+    shipped: '<path d="M6 14h20v14H6z"/><path d="M16 11V3M12 7l4-4 4 4"/>',
+    owed: '<circle cx="16" cy="16" r="12"/><path d="M16 9v8M16 21v1"/>',
+    stock: '<path d="M4 28h24M6 28V18h9v10M17 28V12h9v16M8 18v-6h9"/>',
+    onway: '<path d="M3 8h16v14H3zM19 13h6l4 5v4H19z"/><circle cx="9" cy="24" r="2.5"/><circle cx="24" cy="24" r="2.5"/>',
+    cost: '<circle cx="16" cy="16" r="12"/><path d="M20 11.5c-1-1.5-6-2-6.5.8C13 16 20 15 19.5 19c-.5 3-5.5 2.5-7 .8M16 7v3M16 22v3"/>'
+  };
+  function icon(name) {
+    return '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + "</svg>";
+  }
+
   // Shoppers buy 4 cases a week, then suddenly 8 from week 5 onwards.
   function customerDemand(week) { return week <= 4 ? 4 : 8; }
 
@@ -610,8 +629,18 @@
 
   /* ----- Playing ----- */
 
+  // The supply chain from the factory to the shoppers, with this player's business marked.
+  function renderChain() {
+    $("chain").innerHTML = ROLES.slice().reverse().map(function (r) {
+      var mine = r.key === me.role;
+      return '<li class="bg-node' + (mine ? " bg-you" : "") + '"' + (mine ? ' aria-current="true"' : "") + '><span class="bg-node-icon">' + icon(r.key) + "</span>" +
+        "<b>" + r.name + (mine ? " <small>(you)</small>" : "") + "</b></li>";
+    }).join("") + '<li class="bg-node bg-end"><span class="bg-node-icon">' + icon("shoppers") + "</span><b>Shoppers</b></li>";
+  }
+
   function renderPlay(g) {
     show("play");
+    renderChain();
     $("weekLabel").textContent = (me.kind === "class" ? "Game " + me.game + " · " : "") + "Week " + g.week + " of " + g.weeks;
     if (!me.role) {
       $("playTitle").textContent = gameTitle();
@@ -626,17 +655,17 @@
 
     var asker = i === 0 ? "Shoppers want" : "The " + ROLES[i - 1].name + " ordered";
     var items = [
-      ["Beer arrived", b.received, "cases delivered to you this week"],
-      ["New order", b.demand, asker + " this many cases"],
-      ["Shipped out", b.shipped, i === 0 ? "cases sold to shoppers" : "cases sent to the " + ROLES[i - 1].name],
-      ["Still owed", b.owed, "orders you couldn't fill yet. Costs " + money(OWED_COST) + " per case each week"],
-      ["In stock", b.stock, "cases on your shelves. Costs " + money(STOCK_COST) + " per case each week"],
-      ["On the way to you", b.arriving1 + b.arriving2, b.arriving1 + " next week, " + b.arriving2 + " the week after"],
-      ["Your costs so far", money(b.total), "stock and owed costs from past weeks"]
+      ["arrived", "Beer arrived", b.received, "cases delivered to you this week"],
+      ["order", "New order", b.demand, asker + " this many cases"],
+      ["shipped", "Shipped out", b.shipped, i === 0 ? "cases sold to shoppers" : "cases sent to the " + ROLES[i - 1].name],
+      ["owed", "Still owed", b.owed, "orders you couldn't fill yet. Costs " + money(OWED_COST) + " per case each week"],
+      ["stock", "In stock", b.stock, "cases on your shelves. Costs " + money(STOCK_COST) + " per case each week"],
+      ["onway", "On the way to you", b.arriving1 + b.arriving2, b.arriving1 + " next week, " + b.arriving2 + " the week after"],
+      ["cost", "Your costs so far", money(b.total), "stock and owed costs from past weeks"]
     ];
     $("numbers").hidden = false;
     $("numbers").innerHTML = items.map(function (it) {
-      return "<div><dt>" + it[0] + "</dt><dd>" + it[1] + '</dd><dd class="bg-hint">' + it[2] + "</dd></div>";
+      return '<div><dt><span class="bg-num-icon">' + icon(it[0]) + "</span>" + it[1] + "</dt><dd>" + it[2] + '</dd><dd class="bg-hint">' + it[3] + "</dd></div>";
     }).join("");
 
     var cpuPlays = !!(g.cpu && g.cpu[me.role]);
