@@ -1,0 +1,152 @@
+/* Warehouse Site Selector: blue title band, then four numbered steps.
+   Loaded after css/style.css. Colors are named by their job (text, background, accent) so the
+   dark theme only has to swap values here. */
+
+:root {
+  --page: #f5f9fe;        /* page background */
+  --card: #ffffff;        /* step cards */
+  --field: #ffffff;       /* inputs */
+  --mist: #e8f1fb;        /* soft highlight background */
+  --line: #c9dbf0;        /* borders and table rules */
+  --ink: #12263f;         /* body text: 14.5:1 on --card */
+  --muted: #4f6582;       /* secondary text: 5.9:1 on --card */
+  --heading: #0b3a75;     /* headings and labels: 11.6:1 on --card */
+  --accent: #1565c0;      /* links, outlines: 5.8:1 on --card */
+  --accent-strong: #1565c0; /* filled buttons and step numbers */
+  --on-accent: #ffffff;
+  --band: #0b3a75;        /* title band and result box */
+  --on-band: #ffffff;
+  --on-band-soft: #d6e6fa;
+  --on-band-accent: #b7d6f6;
+  --focus-ring: #5aa2e8;
+  --tip: #0b3a75;         /* suggestion reasons */
+  --c-cost: #0b3a75;      /* weighting bar: cost */
+  --c-other: #5aa2e8;     /* weighting bar: other factors */
+  --font: "Lexend", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --page: #0d1726;
+  --card: #14223a;
+  --field: #0f1b2e;
+  --mist: #1b2f4d;
+  --line: #34507a;
+  --ink: #e6eef9;         /* 13.5:1 on --card */
+  --muted: #a9bbd3;       /* 7.8:1 on --card */
+  --heading: #cfe2fb;     /* 12.0:1 on --card */
+  --accent: #8cc0f5;      /* 7.6:1 on --card */
+  --accent-strong: #8cc0f5;
+  --on-accent: #0b1a30;
+  --band: #0a2a52;
+  --focus-ring: #8cc0f5;
+  --tip: #cfe2fb;
+  --c-cost: #dbe9fb;
+  --c-other: #2b6cc0;
+}
+
+body { background: var(--page); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5; }
+.tool-nav .back-link { margin-bottom: 0; }
+.wrap { max-width: 1000px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.band { background: var(--band); color: var(--on-band); }
+.band .wrap { padding-block: 28px 24px; }
+.band h1 { margin: 0 0 6px; font-size: 1.9rem; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+.band p { margin: 0; max-width: 64ch; color: var(--on-band-soft); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+main.wrap { padding-block: 24px 48px; display: grid; gap: 22px; }
+
+/* Buttons (tool-only; the header's theme button keeps the shared look) */
+.wss main button, .wss .band button { font: inherit; cursor: pointer; border-radius: 8px; padding: 9px 16px; border: 1.5px solid var(--accent); background: var(--field); color: var(--accent); font-weight: 500; }
+.wss main button:hover { background: var(--mist); }
+.wss main button.solid { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--on-accent); }
+.wss main button.solid:hover { background: var(--heading); border-color: var(--heading); }
+.wss .band button { border-color: var(--on-band); background: transparent; color: var(--on-band); }
+.wss .band button:hover { background: rgba(255,255,255,0.14); }
+.wss .band button.solid { background: #ffffff; border-color: #ffffff; color: #0b3a75; }
+.wss .band button.solid:hover { background: #e8f1fb; border-color: #e8f1fb; }
+.wss main button:focus-visible, .wss .band button:focus-visible, .wss input:focus-visible, .wss select:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.link-btn { border: none !important; background: none !important; padding: 4px 0 !important; text-decoration: underline; font-size: 0.88rem; }
+
+.notice { background: var(--mist); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; color: var(--heading); margin: 0; }
+
+/* Steps */
+section.step { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.step-head { display: flex; gap: 14px; align-items: flex-start; }
+.num { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-strong); color: var(--on-accent); display: grid; place-items: center; font-weight: 600; }
+.step h2 { margin: 2px 0 2px; font-size: 1.2rem; font-weight: 600; color: var(--heading); }
+.step-head p, .sub-note { margin: 0; color: var(--muted); max-width: 72ch; }
+.step h3 { margin: 10px 0 0; font-size: 1rem; font-weight: 600; color: var(--heading); }
+.formula { display: inline-block; justify-self: start; background: var(--mist); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; color: var(--heading); font-size: 0.92rem; }
+.small { font-size: 0.82rem; color: var(--muted); margin: 0; }
+
+/* Step 1: weighting */
+input[type=range] { width: 100%; accent-color: var(--accent-strong); height: 28px; }
+.split-labels { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; font-size: 0.95rem; }
+.split-labels .cost { color: var(--heading); }
+.split-labels .other { color: var(--accent); }
+.split-bar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: var(--mist); }
+.split-bar div:first-child { background: var(--c-cost); }
+.split-bar div:last-child { background: var(--c-other); }
+
+/* Inputs and tables */
+.site-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.site-box { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: var(--page); display: grid; gap: 6px; }
+.site-box label { font-size: 0.8rem; color: var(--muted); }
+.wss input[type=number], .wss input[type=text], .wss select { font: inherit; width: 100%; min-width: 0; padding: 7px 9px; border: 1.5px solid var(--line); border-radius: 7px; background: var(--field); color: var(--ink); font-variant-numeric: tabular-nums; }
+.wss input:hover, .wss select:hover { border-color: var(--focus-ring); }
+.name-input { font-weight: 600; color: var(--heading) !important; }
+.score-line { font-size: 0.92rem; }
+.score-line b { color: var(--accent); }
+
+.scroll { overflow-x: auto; min-width: 0; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+thead th { background: var(--mist); color: var(--heading); font-weight: 600; font-size: 0.88rem; }
+.total-row td { font-weight: 600; background: var(--mist); color: var(--heading); }
+.winner-row td { background: var(--mist); font-weight: 600; }
+.rate-table select { min-width: 120px; }
+
+/* Step 3a: ideas and factor boxes */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.wss main .chip { border-radius: 999px; padding: 5px 12px; font-size: 0.88rem; }
+.wss main .chip.used { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--on-accent); cursor: default; }
+.factor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.factor-grid label { display: grid; gap: 4px; font-size: 0.8rem; color: var(--muted); }
+.field-row { display: flex; gap: 4px; }
+.wss main .clear-x { padding: 2px 10px; border-color: var(--line); color: var(--muted); }
+
+/* Step 3b: importance */
+.imp-list { display: grid; gap: 8px; }
+.imp-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--page); display: grid; gap: 6px; }
+.imp-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.imp-name { flex: 1 1 10rem; font-weight: 600; color: var(--heading); overflow-wrap: anywhere; }
+.levels { display: flex; flex-wrap: wrap; gap: 4px; }
+.wss main .level { border-radius: 999px; padding: 4px 11px; font-size: 0.8rem; }
+.wss main .level[aria-pressed="true"] { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--on-accent); }
+.imp-pct { width: 3.5rem; text-align: right; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.why { margin: 0; font-size: 0.85rem; color: var(--tip); }
+
+/* Guide */
+details.guide { border: 1px solid var(--line); border-radius: 10px; background: var(--page); }
+details.guide > summary { cursor: pointer; padding: 12px 16px; font-weight: 600; color: var(--accent); }
+.guide-body { padding: 0 16px 14px; }
+.guide-body table td, .guide-body table th { font-size: 0.9rem; }
+
+/* Results */
+.winner { background: var(--band); color: var(--on-band); border-radius: 12px; padding: 18px 20px; display: grid; gap: 6px; }
+.winner.waiting { background: var(--mist); color: var(--heading); }
+.winner .eyebrow { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--on-band-accent); }
+.winner .big { font-size: 1.6rem; font-weight: 700; }
+.winner p { margin: 0; color: var(--on-band-soft); max-width: 72ch; }
+.winner.waiting p { color: var(--heading); }
+.how { color: var(--muted); font-size: 0.9rem; }
+.how summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.how ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+
+@media (max-width: 560px) {
+  .band h1 { font-size: 1.5rem; }
+  section.step { padding: 16px; }
+  .imp-pct { width: auto; }
+}
+@media print {
+  .site-header, .tool-nav, .toolbar, .chips, details.guide, #suggestBtn { display: none !important; }
+}

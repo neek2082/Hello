@@ -16,7 +16,8 @@
 ## Project Structure
 
 - `index.html`: portal homepage
-- `tools/`: one HTML page per tool (`site-chooser-plus.html`, `beer-game.html`, `wms.html`)
+- `tools/`: one HTML page per tool (`warehouse-site-selector.html`, `beer-game.html`, `wms.html`).
+  `site-chooser-plus.html` is only a forwarding page to `warehouse-site-selector.html`, kept so old links work.
 - `css/style.css`: shared styles, including light/dark colors and buttons (`.btn`)
 - `css/<tool-name>.css`: optional styles for one tool, with its own light/dark colors
 - `js/theme.js`: shared theme toggle
@@ -60,11 +61,20 @@ warehousing and supply chain tools. Plain language throughout.
      in dark), cards with thick outlines and solid offset shadows, and
      simple line icons (inline SVG, drawn in the text color). All colors
      are variables at the top of `css/style.css`.
-   - [x] First tool: "Site Chooser Plus". In: three warehouse sites'
-     distances, needs and prices, plus ticks for sustainability,
-     governance and labour. Out: yearly cost per site, how much each
-     factor counts, and the best overall site with reasons. Keeps its
-     own blue look, with a matching dark theme.
+   - [x] First tool: "Site Chooser Plus" (replaced, see below).
+   - [x] "Warehouse Site Selector" replaces Site Chooser Plus. Step 1: a
+     slider splits Cost vs Other factors (default 60 / 40). Step 2: the
+     yearly total cost of 3 sites (rent + utilities + transport, typed in);
+     cost points = lowest cost ÷ this site's cost × 5. Step 3: the user
+     types or taps 5 other factors (e.g. educated workforce, stable
+     government, government incentives), picks an importance level for each
+     (Low 1 … Critical 5, turned into percentages that add up to 100%; a
+     "Suggest importance" button uses built-in word rules with a reason,
+     not live AI), then rates each site 1–5 per factor; other-factor points
+     = ratings weighted by importance. Step 4: results table and the winner
+     with reasons. Keeps the blue look, with a matching dark theme. Files:
+     `tools/warehouse-site-selector.html`, `css/warehouse-site-selector.css`,
+     `js/warehouse-site-selector.js` (rules and ideas are lists at the top).
 2. **More tools**: add tools one at a time using the steps above.
    - [x] Second tool: "Beer Game". 4 players, each on their own device,
      run the Retailer, Wholesaler, Distributor and Factory for 20 weeks.

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Warehouse Site Selector — Warehousing Tools</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/warehouse-site-selector.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body class="wss">
+  <header class="site-header">
+    <div class="container">
+      <a class="site-name" href="../index.html"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" aria-hidden="true"><path d="M4 13 16 5l12 8v14H4z"/><path d="M10 27v-9h12v9M10 22h12"/></svg>Warehousing Tools</a>
+      <button type="button" class="theme-toggle">Dark theme</button>
+    </div>
+  </header>
+
+  <nav class="wrap tool-nav" aria-label="Back">
+    <a class="back-link" href="../index.html">← All tools</a>
+  </nav>
+
+  <div class="band">
+    <div class="wrap">
+      <h1>Warehouse Site Selector</h1>
+      <p>Compare three warehouse sites by cost and by the other things that matter, such as workforce, government and the environment. Then see which site wins.</p>
+      <div class="toolbar">
+        <button type="button" class="solid" id="example">Fill in an example</button>
+        <button type="button" id="clear">Start over</button>
+        <button type="button" onclick="window.print()">Print results</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="wrap">
+
+    <!-- Step 1 -->
+    <section class="step" aria-labelledby="h1">
+      <div class="step-head"><div class="num">1</div><div>
+        <h2 id="h1">How important is each side?</h2>
+        <p>Slide to decide how much <b>cost</b> matters compared with <b>other factors</b>. The two always add up to 100%.</p>
+      </div></div>
+      <input type="range" id="weight" min="0" max="100" step="5" value="60" aria-label="Cost share, in percent">
+      <div class="split-labels"><span class="cost">Cost: <span id="econPct">60</span>%</span><span class="other">Other factors: <span id="otherPct">40</span>%</span></div>
+      <div class="split-bar" aria-hidden="true"><div id="econBar" style="width:60%"></div><div id="otherBar" style="width:40%"></div></div>
+      <div><button type="button" class="link-btn" id="resetWeight">Back to 60 / 40</button></div>
+    </section>
+
+    <!-- Step 2 -->
+    <section class="step" aria-labelledby="h2">
+      <div class="step-head"><div class="num">2</div><div>
+        <h2 id="h2">Enter each site's yearly cost</h2>
+        <p>Add up <b>Rent + Utilities + Transport</b> for one year and type the total below.</p>
+      </div></div>
+      <div class="formula">Cost points = <b>Lowest site cost ÷ This site's cost × 5</b> · the cheapest site gets 5 points</div>
+      <div class="site-grid" id="costInputs"></div>
+      <p class="small" id="costNote"></p>
+    </section>
+
+    <!-- Step 3 -->
+    <section class="step" aria-labelledby="h3">
+      <div class="step-head"><div class="num">3</div><div>
+        <h2 id="h3">Other factors</h2>
+        <p>Choose 5 things besides cost that matter for this warehouse, decide how important each is, then rate each site.</p>
+      </div></div>
+
+      <h3>3a · Choose your 5 factors</h3>
+      <p class="sub-note">Type your own, or tap an idea to add it to the next empty box.</p>
+      <div class="chips" id="ideaChips"></div>
+      <div class="factor-grid" id="factorInputs"></div>
+      <p class="small" id="factorNote" aria-live="polite"></p>
+
+      <h3>3b · How important is each factor?</h3>
+      <p class="sub-note">Pick a level for each factor. The tool turns these into percentages that add up to 100%. Not sure? Press the button for a suggestion, then change anything you disagree with.</p>
+      <div><button type="button" class="solid" id="suggestBtn">Suggest importance for me</button></div>
+      <div class="imp-list" id="importanceRows"></div>
+      <p class="small" id="importanceNote"></p>
+
+      <h3>3c · Rate each site from 1 to 5</h3>
+      <details class="guide">
+        <summary>How to give points (guide)</summary>
+        <div class="guide-body scroll">
+          <table>
+            <thead><tr><th>Points</th><th>Meaning</th><th>Ask yourself…</th></tr></thead>
+            <tbody>
+              <tr><td>5</td><td>Excellent</td><td>Fully meets it, with clear proof (e.g. certified, already in place, strong track record).</td></tr>
+              <tr><td>4</td><td>Good</td><td>Mostly meets it, with only small gaps.</td></tr>
+              <tr><td>3</td><td>Fair</td><td>Partly meets it, or it's planned but not done yet.</td></tr>
+              <tr><td>2</td><td>Weak</td><td>Only a little; major gaps remain.</td></tr>
+              <tr><td>1</td><td>Poor</td><td>Does not meet it at all, or is a real risk.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+      <div class="scroll">
+        <table class="rate-table">
+          <thead>
+            <tr><th>Factor</th><th>Importance</th><th class="site-col-0">Site 1</th><th class="site-col-1">Site 2</th><th class="site-col-2">Site 3</th></tr>
+          </thead>
+          <tbody id="ratingBody"></tbody>
+          <tfoot>
+            <tr class="total-row"><td colspan="2">Other-factor points (1–5)</td><td id="avg0">–</td><td id="avg1">–</td><td id="avg2">–</td></tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="small">Other-factor points = each rating × that factor's importance %, added together. More important factors count for more.</p>
+    </section>
+
+    <!-- Step 4 -->
+    <section class="step" aria-labelledby="h4">
+      <div class="step-head"><div class="num">4</div><div>
+        <h2 id="h4">Which site should we choose?</h2>
+      </div></div>
+      <div class="winner waiting" id="winnerBox" aria-live="polite"></div>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>Site</th><th>Yearly cost</th><th>Cost points</th><th>Cost points × weight</th><th>Other-factor points</th><th>Other-factor points × weight</th><th>Total (out of 5)</th></tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+      <details class="how">
+        <summary>How is this worked out?</summary>
+        <ul>
+          <li><b>Cost points</b> = lowest site cost ÷ this site's cost × 5. The cheapest site gets 5; dearer sites get less.</li>
+          <li><b>Importance %</b> = a factor's importance level ÷ all importance levels added together.</li>
+          <li><b>Other-factor points</b> = (rating × importance %) for each factor, added together.</li>
+          <li><b>Total</b> = cost points × cost % + other-factor points × other-factors %. The highest total wins.</li>
+        </ul>
+      </details>
+    </section>
+  </main>
+
+  <script src="../js/warehouse-site-selector.js"></script>
+</body>
+</html>
