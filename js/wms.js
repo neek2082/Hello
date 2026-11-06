@@ -9,7 +9,7 @@
   var DB_URL = "https://my-second-project-72735-default-rtdb.asia-southeast1.firebasedatabase.app";
   // The project's web key for signing in. It is meant to be public: what each account may do is decided
   // by the database rules (firebase/wms.rules.json), not by this key.
-  var API_KEY = "";
+  var API_KEY = "AIzaSyALL3KicOUAGgqnMr7B9BB8utIwHQJYHY8";
   var LOGIN_DOMAIN = "wms.example"; // turns usernames into account names; ".example" can never receive email
 
   var MAX_WAREHOUSES = 10; // 60 student accounts, 6 to a warehouse
