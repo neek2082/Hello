@@ -1,0 +1,43 @@
+{
+  "rules": {
+    "roster": {
+      ".read": "auth != null && root.child('roster').child(auth.uid).child('role').val() === 'faci'",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && !data.exists()",
+        ".validate": "newData.hasChildren(['role', 'name']) && newData.child('name').val().toLowerCase() + '@wms.example' === auth.token.email && (newData.child('role').val() === 'faci') === newData.child('name').val().toLowerCase().beginsWith('wms_faci_') && (newData.child('role').val() === 'faci' || newData.child('role').val() === 'student')"
+      }
+    },
+    "wms": {
+      ".read": "auth != null && root.child('roster').child(auth.uid).child('role').val() === 'faci'",
+      ".write": "auth != null && root.child('roster').child(auth.uid).child('role').val() === 'faci'",
+      "log": {
+        "$w": {
+          ".read": "auth != null && root.child('roster').child(auth.uid).child('w').val() === $w",
+          "$entry": {
+            ".write": "auth != null && !data.exists() && root.child('roster').child(auth.uid).child('w').val() === $w",
+            ".validate": "newData.hasChildren(['t', 'p', 'name', 'uid', 'at']) && newData.child('uid').val() === auth.uid && newData.child('p').val() === root.child('roster').child(auth.uid).child('p').val() && newData.child('name').val() === root.child('roster').child(auth.uid).child('name').val() && newData.child('at').val() === now && newData.child('t').isString() && newData.child('t').val().length <= 10",
+            "doc": {
+              ".validate": "newData.isString() && newData.val().length <= 20"
+            },
+            "sku": {
+              ".validate": "newData.isString() && newData.val().length <= 20"
+            },
+            "bin": {
+              ".validate": "newData.isString() && newData.val().length <= 20"
+            },
+            "why": {
+              ".validate": "newData.isString() && newData.val().length <= 300"
+            },
+            "qty": {
+              ".validate": "newData.isNumber()"
+            },
+            "line": {
+              ".validate": "newData.isNumber()"
+            }
+          }
+        }
+      }
+    }
+  }
+}

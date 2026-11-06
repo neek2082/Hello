@@ -19,6 +19,11 @@
   <main class="container">
     <a class="back-link" href="../index.html">← All tools</a>
 
+    <div id="whoBar" class="bg-who" hidden>
+      <span>Signed in as <strong id="whoName"></strong></span>
+      <button type="button" id="signOutBtn" class="btn">Sign out</button>
+    </div>
+
     <p id="status" class="bg-status" role="status" aria-live="polite" hidden></p>
 
     <!-- Start screen -->
@@ -42,42 +47,31 @@
       </details>
 
       <div class="bg-choices">
-        <form id="joinForm" class="bg-card">
-          <h2>Join with a code</h2>
-          <p class="bg-hint">Students: enter the code from your lecturer and you'll be given a game and a business. Also works for a friend's game code.</p>
-          <label class="bg-field">Code
-            <input type="text" id="joinCode" maxlength="6" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. K7Q2PX">
+        <form id="signInForm" class="bg-card">
+          <h2>Sign in</h2>
+          <p class="bg-hint">Students and lecturers: use the username and password on the slip from your lecturer.</p>
+          <label class="bg-field">Username
+            <input type="text" id="loginName" maxlength="40" required autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="e.g. BEERGAME_Student_001">
           </label>
-          <label class="bg-field">Your name
-            <input type="text" id="joinName" maxlength="20" required autocomplete="nickname">
+          <label class="bg-field">Password
+            <input type="password" id="loginPass" maxlength="40" required autocomplete="current-password">
           </label>
-          <button type="submit" class="btn btn-primary">Join</button>
+          <button type="submit" id="signInBtn" class="btn btn-primary">Sign in</button>
+          <p class="bg-hint">On a shared computer, sign out when you finish.</p>
         </form>
 
-        <form id="lecturerForm" class="bg-card">
-          <h2>Lecturers: start a class</h2>
-          <p class="bg-hint">Get one code for the whole class. Students are seated 4 to a game, and you see every game live.</p>
-          <label class="bg-field">Your name
-            <input type="text" id="lecturerName" maxlength="20" required autocomplete="name">
-          </label>
-          <label class="bg-field">Number of games
-            <select id="lecturerGames"></select>
-          </label>
-          <button type="submit" class="btn btn-primary">Start class session</button>
-        </form>
-
-        <form id="createForm" class="bg-card">
-          <h2>Play with friends</h2>
-          <p class="bg-hint">Start one game and share its code. Up to 4 people play, each on their own device.</p>
-          <label class="bg-field">Your name
-            <input type="text" id="createName" maxlength="20" required autocomplete="nickname">
-          </label>
-          <button type="submit" class="btn btn-primary">Create game</button>
-        </form>
+        <div id="signedIn" class="bg-card" hidden>
+          <h2>Welcome back</h2>
+          <p>You're signed in as <strong id="signedInName"></strong>.</p>
+          <div class="bg-row">
+            <button type="button" id="continueBtn" class="btn btn-primary">Continue</button>
+            <button type="button" id="introSignOut" class="btn">Sign out</button>
+          </div>
+        </div>
 
         <div class="bg-card">
           <h2>Practice alone</h2>
-          <p class="bg-hint">Pick a business. The computer runs the other three.</p>
+          <p class="bg-hint">No sign-in needed. Pick a business; the computer runs the other three.</p>
           <label class="bg-field">Your business
             <select id="practiceRole"></select>
           </label>
@@ -86,35 +80,18 @@
       </div>
 
       <p id="offlineNote" class="bg-note" hidden>
-        Online games aren't switched on yet. They need a free online database to pass moves between
-        players. Practice mode works now.
+        Signing in isn't switched on yet. Practice mode works now.
       </p>
-
-      <div id="rejoin" class="bg-card" hidden>
-        <p id="rejoinText"></p>
-        <div class="bg-row">
-          <button type="button" id="rejoinBtn" class="btn btn-primary">Go back</button>
-          <button type="button" id="forgetBtn" class="btn">Forget it</button>
-        </div>
-      </div>
     </section>
 
     <!-- Waiting room -->
     <section id="lobby" class="bg-stack" hidden>
       <h1 id="lobbyTitle"></h1>
-      <div id="shareBox" class="bg-stack">
-        <p class="bg-hint">Share this link (or the code at the end of it) with up to three other players.</p>
-        <div class="bg-row">
-          <input type="text" id="shareLink" class="bg-link" readonly aria-label="Link to this game">
-          <button type="button" id="copyLink" class="btn">Copy link</button>
-          <span id="copied" class="bg-hint" aria-live="polite"></span>
-        </div>
       </div>
       <p id="lobbyNote"></p>
       <ul id="roleList" class="bg-roles"></ul>
       <div class="bg-row">
-        <button type="button" id="startBtn" class="btn btn-primary" hidden>Start game</button>
-        <button type="button" id="leaveLobby" class="btn">Leave</button>
+        <button type="button" id="startBtn" class="btn btn-primary" hidden>Start now</button>
       </div>
     </section>
 
@@ -217,19 +194,13 @@
 
     <!-- Lecturer's board -->
     <section id="teacher" class="bg-stack" hidden>
-      <h1 id="teacherTitle"></h1>
+      <h1>Beer Game: all teams</h1>
       <div class="bg-card bg-join-info">
-        <p>Students open this page, choose <strong>Join with a code</strong> and enter:</p>
-        <p class="bg-code bg-code-big" id="teacherCode"></p>
-        <div class="bg-row">
-          <input type="text" id="teacherLink" class="bg-link" readonly aria-label="Link for students">
-          <button type="button" id="copyTeacherLink" class="btn">Copy link</button>
-          <span id="teacherCopied" class="bg-hint" aria-live="polite"></span>
-        </div>
-        <p class="bg-hint">
-          Students are seated in order (Game 1 Retailer, Wholesaler, Distributor, Factory, then Game 2…).
-          Each game starts by itself when its 4 seats are full. If a game can't fill up, start it with
-          computer players. To move a student, remove them and they join again for the next free seat.
+        <p>
+          Students sign in with their own account and join their team: Students 001–004 are Team 1,
+          005–008 Team 2, and so on. In their team, each student picks a business. A game starts by itself
+          when all 4 seats are filled; if a student is away, start it with computer players.
+          Removing a student frees their seat (the computer takes over if the game has started).
         </p>
       </div>
       <p id="teacherCounts" class="bg-strong"></p>
@@ -244,16 +215,16 @@
       </div>
       <div class="bg-row">
         <button type="button" id="downloadClass" class="btn">Download results (CSV)</button>
-        <button type="button" id="leaveTeacher" class="btn">Close this board</button>
-        <button type="button" id="deleteClass" class="btn btn-danger" hidden>Delete this class</button>
+        <button type="button" id="resetAll" class="btn btn-danger">Reset all games</button>
       </div>
       <p class="bg-hint">
-        The download opens in Google Sheets or Excel: one row per game with each player's name and cost.
-        Closing the board keeps the class; you can come back to it from this page.
+        The download opens in Google Sheets or Excel: one row per team with each player's name, stock, orders owed and cost.
+        Reset all games clears every team, ready for the next class. Download the results first if you need them.
       </p>
     </section>
   </main>
 
+  <script src="../js/firebase-login.js"></script>
   <script src="../js/beer-game.js"></script>
 </body>
 </html>

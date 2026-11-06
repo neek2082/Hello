@@ -32,47 +32,31 @@
       </p>
 
       <div class="wm-choices">
-        <form id="studentForm" class="wm-card">
-          <h2>Students: join your class</h2>
-          <p class="wm-hint">Enter the code from your lecturer. You'll be given a warehouse and your orders.</p>
-          <label class="wm-field">Class code
-            <input type="text" id="sCode" maxlength="6" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. K7Q2PX">
+        <form id="signInForm" class="wm-card">
+          <h2>Sign in</h2>
+          <p class="wm-hint">Students and lecturers: use the username and password on the slip from your lecturer.
+            Students go straight to their own warehouse.</p>
+          <label class="wm-field">Username
+            <input type="text" id="loginName" maxlength="40" required autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="e.g. WMS_Student_001">
           </label>
-          <label class="wm-field">Your name or student number
-            <input type="text" id="sName" maxlength="40" required autocomplete="off">
+          <label class="wm-field">Password
+            <input type="password" id="loginPass" maxlength="40" required autocomplete="current-password">
           </label>
-          <p class="wm-hint">Use the same name each day so your work stays together.</p>
-          <button type="submit" class="btn btn-primary">Join</button>
+          <button type="submit" id="signInBtn" class="btn btn-primary">Sign in</button>
+          <p class="wm-hint">On a shared computer, sign out when you finish. Your work is saved either way.</p>
         </form>
 
-        <form id="teacherForm" class="wm-card">
-          <h2>Lecturers: start a class</h2>
-          <p class="wm-hint">Students can only join and work between the first and last lesson day.</p>
-          <label class="wm-field">Your name
-            <input type="text" id="tName" maxlength="40" required autocomplete="name">
-          </label>
-          <label class="wm-field">Number of warehouses (6 students each)
-            <select id="tWarehouses"></select>
-          </label>
-          <div class="wm-two">
-            <label class="wm-field">First lesson day
-              <input type="date" id="tFirst" required>
-            </label>
-            <label class="wm-field">Last lesson day
-              <input type="date" id="tLast" required>
-            </label>
+        <div id="signedIn" class="wm-card" hidden>
+          <h2>Welcome back</h2>
+          <p>You're signed in as <strong id="signedInName"></strong>.</p>
+          <div class="wm-row">
+            <button type="button" id="continueBtn" class="btn btn-primary">Continue</button>
+            <button type="button" id="introSignOut" class="btn">Sign out</button>
           </div>
-          <button type="submit" class="btn btn-primary">Start class</button>
-        </form>
-      </div>
-
-      <div id="rejoin" class="wm-card" hidden>
-        <p id="rejoinText"></p>
-        <div class="wm-row">
-          <button type="button" id="rejoinBtn" class="btn btn-primary">Go back</button>
-          <button type="button" id="forgetBtn" class="btn">Forget it</button>
         </div>
       </div>
+
+      <p id="offlineNote" class="wm-hint" hidden>Signing in isn't switched on yet.</p>
     </section>
 
     <!-- Student's WMS -->
@@ -92,21 +76,16 @@
 
     <!-- Lecturer's board -->
     <section id="teacher" class="wm-stack" hidden>
-      <h1 id="tTitle"></h1>
+      <div class="wm-row wm-spread">
+        <h1>WMS: all warehouses</h1>
+        <button type="button" id="tSignOut" class="btn">Sign out</button>
+      </div>
       <div class="wm-card">
-        <p>Students open this page, choose <strong>Students: join your class</strong> and enter:</p>
-        <p id="tCode" class="wm-code wm-code-big"></p>
-        <div class="wm-row">
-          <input type="text" id="tLink" class="wm-link" readonly aria-label="Link for students">
-          <button type="button" id="tCopy" class="btn">Copy link</button>
-          <span id="tCopied" class="wm-hint" aria-live="polite"></span>
-        </div>
-        <p id="tOpen" class="wm-strong"></p>
         <p class="wm-hint">
-          Students are placed in order: Warehouse 1 places 1–6, then Warehouse 2, and so on. Each place has its own
-          3 purchase orders and 3 sales orders, the same in every warehouse: 21 steps in all (receive and put away
-          6 lines, pick 6 lines, pack and ship 3 orders). A student who joins again with the same name gets their
-          place back. Students see system messages, not scores; refused entries are counted here and in the CSV.
+          Each student account has a fixed place: Students 001–006 are Warehouse 1 (places 1–6), 007–012 Warehouse 2,
+          and so on. Each place has its own 3 purchase orders and 3 sales orders, the same in every warehouse: 21 steps
+          in all (receive and put away 6 lines, pick 6 lines, pack and ship 3 orders). Students see system messages,
+          not scores; refused entries are counted here and in the CSV.
         </p>
       </div>
       <p id="tCounts" class="wm-strong"></p>
@@ -114,15 +93,14 @@
       <div class="wm-row">
         <button type="button" id="tSummary" class="btn">Download student summary (CSV)</button>
         <button type="button" id="tLog" class="btn">Download all transactions (CSV)</button>
+        <button type="button" id="tReset" class="btn btn-danger">Reset all warehouses</button>
       </div>
-      <p class="wm-hint">The downloads open in Google Sheets or Excel, for grading. Download them before deleting the class.</p>
-      <div class="wm-row">
-        <button type="button" id="tClose" class="btn">Close this board</button>
-        <button type="button" id="tDelete" class="btn btn-danger" hidden>Delete this class</button>
-      </div>
+      <p class="wm-hint">The downloads open in Google Sheets or Excel, for grading. Reset clears every warehouse, ready for the
+        next class: download the results first if you need them.</p>
     </section>
   </main>
 
+  <script src="../js/firebase-login.js"></script>
   <script src="../js/wms.js"></script>
 </body>
 </html>

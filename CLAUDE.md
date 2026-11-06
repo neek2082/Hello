@@ -10,8 +10,22 @@
   plain web requests (`fetch` and `EventSource`), not Google's code library.
   Each tool has its own project, both in Singapore (asia-southeast1): the
   Beer Game uses `beer-game-data`, the WMS uses `my-second-project-72735`.
-  The address is `DB_URL` at the top of `js/beer-game.js` and `js/wms.js`;
-  when the Beer Game's is empty, only practice mode works.
+  The address is `DB_URL` at the top of `js/beer-game.js` and `js/wms.js`.
+- Both tools also use Firebase sign-in (Email/Password), again with plain web
+  requests (`js/firebase-login.js`). Each project's public Web API key is
+  `API_KEY` at the top of each tool's script; when it is empty, signing in is
+  off (the Beer Game's practice mode still works).
+- Accounts are handed out by the lecturer, never made by visitors (new
+  sign-ups are switched off in Firebase). Per tool: 60 students and 3
+  lecturers, e.g. `BEERGAME_Student_001`, `WMS_Faci_001`. Firebase stores them
+  as `beergame_student_001@beergame.example` (`.example` can never receive
+  email). Passwords are random and are never kept in this repository.
+- `roster/<account id>` in each database says who an account is (`role`
+  "student" or "faci", `name`, and `team` or `w`/`p`). The database rules
+  (`firebase/*.rules.json`, pasted into each project's Rules tab) use it:
+  students only reach their own team or warehouse, lecturers reach everything.
+  Each account may write its own roster entry once (done by the one-time
+  setup page); after that only the Firebase console can change it.
 
 ## Project Structure
 
@@ -22,6 +36,8 @@
 - `css/<tool-name>.css`: optional styles for one tool, with its own light/dark colors
 - `js/theme.js`: shared theme toggle
 - `js/<tool-name>.js`: one script per tool
+- `js/firebase-login.js`: shared sign-in and signed-in database access (Beer Game, WMS)
+- `firebase/`: the database rules published in each Firebase project
 
 Update this section as files are added.
 
@@ -76,9 +92,21 @@ warehousing and supply chain tools. Plain language throughout.
      `tools/warehouse-site-selector.html`, `css/warehouse-site-selector.css`,
      `js/warehouse-site-selector.js` (rules and ideas are lists at the top).
 2. **More tools**: add tools one at a time using the steps above.
+   - [x] Sign-in for the Beer Game and the WMS (replaces class codes):
+     the account decides the view. Students go straight to their own team
+     or warehouse; lecturers see every team or warehouse live and can reset
+     them all. "Play with friends" and the WMS lesson-date window were
+     removed. Details below are from before this change where they mention
+     codes, class sessions or dates.
    - [x] Second tool: "Beer Game". 4 players, each on their own device,
      run the Retailer, Wholesaler, Distributor and Factory for 20 weeks.
-     The computer runs empty or idle roles. Ways to play:
+     The computer runs empty or idle roles. Now: Students 001–004 are
+     Team 1, 005–008 Team 2 … (15 teams); each picks a business in their
+     team's game, which starts when 4 seats are filled or when a seated
+     student or a lecturer presses Start now. The lecturer board shows each
+     team's week, each business's stock, orders owed and cost, removes
+     students, downloads a CSV and resets all games. Practice alone needs no
+     sign-in. Before sign-in, the ways to play were:
      - **Class session**: a lecturer gets one code for up to 25 games.
        Students join with the code and are seated in order (Game 1
        Retailer → Factory, then Game 2…). Each game starts by itself when
@@ -112,6 +140,9 @@ warehousing and supply chain tools. Plain language throughout.
      Realtime Database in Singapore (asia-southeast1), set as `DB_URL`
      in `js/beer-game.js`.
    - [x] Third tool: "Warehouse Practice (WMS)" for a 4-day class lesson.
+     Now: Students 001–006 are Warehouse 1 places 1–6, 007–012 Warehouse 2 …
+     (10 warehouses); logs live at `wms/log/w<n>`; lecturers see all 60
+     students and can reset all warehouses. Before sign-in:
      A lecturer starts a class (1–5 warehouses, 6 students each, up to 30)
      with its first and last lesson day; students can only join and work
      between those days (the database rules check this with the server's

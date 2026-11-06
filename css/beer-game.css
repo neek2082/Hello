@@ -43,6 +43,7 @@
 }
 
 .bg-stack input[type="text"],
+.bg-stack input[type="password"],
 .bg-stack input[type="number"],
 .bg-stack select {
   width: 100%;
@@ -634,6 +635,26 @@
 }
 
 .bg-seat-name {
+  overflow-wrap: anywhere;
+}
+
+/* Stock, orders owed and cost so far for one business, on the lecturer's board */
+.bg-seat-stats {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Signed in as …" with a Sign out button, above every signed-in screen */
+.bg-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
   overflow-wrap: anywhere;
 }
 

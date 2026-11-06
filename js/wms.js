@@ -1,18 +1,19 @@
 // Warehouse Practice (WMS): students run a shared practice warehouse like a real warehouse management system.
-// A lecturer starts a class for set lesson days; students join with the class code and are given
-// a warehouse (6 students each) and a place (1–6), which decides their 3 purchase orders and 3 sales orders.
+// Students and lecturers sign in with the accounts the lecturer hands out (WMS_Student_001…, WMS_Faci_001…).
+// Each student account has a fixed warehouse (Students 001–006 = Warehouse 1, 007–012 = Warehouse 2…) and a
+// place (1–6), which decides their 3 purchase orders and 3 sales orders. Lecturer accounts see every warehouse.
 // Each student receives and puts away every purchase-order line, picks every sales-order line, then packs and
 // ships each sales order. Data lives in the WMS's own Firebase Realtime Database, reached with plain web requests.
 (function () {
   // Address of the WMS's own Firebase Realtime Database (project "my-second-project-72735", Singapore).
   var DB_URL = "https://my-second-project-72735-default-rtdb.asia-southeast1.firebasedatabase.app";
+  // The project's web key for signing in. It is meant to be public: what each account may do is decided
+  // by the database rules (firebase/wms.rules.json), not by this key.
+  var API_KEY = "";
+  var LOGIN_DOMAIN = "wms.example"; // turns usernames into account names; ".example" can never receive email
 
-  var MAX_WAREHOUSES = 5;
+  var MAX_WAREHOUSES = 10; // 60 student accounts, 6 to a warehouse
   var PLACES = 6;       // students per warehouse
-  var MAX_DAYS = 14;    // longest lesson window a class can have (the database rules check this too)
-  var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  var SAVE_KEY = "wmsClass";
-  var DAY = 24 * 60 * 60 * 1000;
 
   /* ---------- Lesson data: edit these lists to change the products and orders ---------- */
 
@@ -221,60 +222,33 @@
 
   var SERVER_TIME = { ".sv": "timestamp" }; // the database fills in its own clock
 
-  function at(path) { return DB_URL.replace(/\/+$/, "") + "/" + path + ".json"; }
+  // Signed-in reading and writing (js/firebase-login.js). Where things are kept:
+  //   roster/<account id>        who an account is: { role: "student" or "faci", name, w: "w1"…, p: 1–6 }
+  //   wms/log/w<n>/<entry>       Warehouse n's transaction log (add-only)
+  var login = API_KEY && window.FirebaseLogin ? FirebaseLogin({ apiKey: API_KEY, domain: LOGIN_DOMAIN, saveKey: "wmsLogin" }) : null;
+  var db = login ? FirebaseData(DB_URL, login) : null;
   function send(method, path, body) {
-    return fetch(at(path), { method: method, body: body === undefined ? undefined : JSON.stringify(body) }).then(function (res) {
-      if (res.status === 401) throw new Error("refused");
-      if (!res.ok) throw new Error("The server refused the request (error " + res.status + ").");
-      return res.json();
-    });
+    if (method === "GET") return db.get(path);
+    if (method === "PUT") return db.put(path, body);
+    if (method === "POST") return db.post(path, body);
+    return db.update(path, body);
   }
-  function watch(path, fn, onStatus) {
-    var data = null, es = new EventSource(at(path));
-    function handle(e, isPatch) {
-      var msg = JSON.parse(e.data);
-      data = isPatch ? applyUpdate(data || {}, msg.path, msg.data) : setPath(data, msg.path, msg.data);
-      fn(copy(data));
-    }
-    es.addEventListener("put", function (e) { handle(e, false); });
-    es.addEventListener("patch", function (e) { handle(e, true); });
-    es.addEventListener("cancel", function () { onStatus("This class can no longer be read."); });
-    es.onopen = function () { onStatus(""); };
-    es.onerror = function () { onStatus("Connection lost. Trying to reconnect…"); };
-    return function () { es.close(); };
-  }
+  function watch(path, fn, onStatus) { return db.watch(path, fn, onStatus); }
 
   /* ---------- Page ---------- */
 
   var $ = function (id) { return document.getElementById(id); };
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
-  function randomId(n, chars) {
-    chars = chars || "abcdefghijklmnopqrstuvwxyz0123456789";
-    var out = "";
-    for (var i = 0; i < n; i++) out += chars[Math.floor(Math.random() * chars.length)];
-    return out;
-  }
-  function nameKey(s) { return String(s).trim().toLowerCase().replace(/\s+/g, " "); }
-  function day(ms) { return new Date(ms).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); }
   function clock(ms) { return ms ? new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : ""; }
   function stamp(ms) { return ms ? new Date(ms).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""; }
   function isoDate(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
-  function parseDate(s, endOfDay) {
-    var p = s.split("-").map(Number);
-    return endOfDay ? new Date(p[0], p[1] - 1, p[2], 23, 59, 59, 999).getTime() : new Date(p[0], p[1] - 1, p[2]).getTime();
-  }
-  function openText(info) { return day(info.start) + " to " + day(info.end); }
 
-  var stopWatching = null, me = blankMe(), info = null, wlog = {}, cls = null;
+  var stopWatching = null, me = blankMe(), wlog = {}, cls = null;
   var view = "dash", sel = "", pending = {}, msg = null; // student's current screen, selected document, last system message
   var msgSeq = 0; // each new system message gets the next number
 
-  function blankMe() { return { kind: "", code: "", w: 0, p: 0, name: "", id: randomId(12) }; }
-  function base() { return "wmsClasses/" + me.code; }
-
-  function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(me)); } catch (e) { /* not saved */ } }
-  function loadSaved() { try { return JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { return null; } }
-  function forget() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* nothing saved */ } }
+  function blankMe() { return { kind: "", w: 0, p: 0, name: "", uid: "" }; }
+  function base() { return "wms"; }
 
   function status(msg) {
     $("status").textContent = msg || "";
@@ -286,11 +260,11 @@
     stopWatching = null;
   }
 
-  function leave(keepSaved) {
+  // Back to the start page. Students and lecturers stay signed in unless signOut is true.
+  function leave(signOut) {
     stop();
-    if (!keepSaved) forget();
+    if (signOut && login) login.signOut();
     me = blankMe();
-    info = null;
     cls = null;
     wlog = {};
     view = "dash";
@@ -300,121 +274,59 @@
     showIntro();
   }
 
-  /* ----- Start screen ----- */
+  /* ----- Start screen: sign in ----- */
 
   function showIntro() {
     show("intro");
-    var saved = loadSaved();
-    $("rejoin").hidden = !(saved && saved.code);
-    if (saved && saved.code) {
-      $("rejoinText").textContent = saved.kind === "lecturer"
-        ? "You were running WMS class " + saved.code + "."
-        : "You were in WMS class " + saved.code + " as " + saved.name + " (Warehouse " + saved.w + ", place " + saved.p + ").";
-    }
+    var u = login && login.user();
+    $("signInForm").hidden = !login || !!u;
+    $("signedIn").hidden = !u;
+    if (u) $("signedInName").textContent = u.username;
+  }
+
+  // Who this account is, from the roster the lecturer set up: a lecturer, or a student with a warehouse and place.
+  function enterAs(u) {
+    status("Opening…");
+    return send("GET", "roster/" + u.uid).then(function (r) {
+      if (!r) throw new Error("This account isn't set up for the WMS. Please ask your lecturer.");
+      status("");
+      me = blankMe();
+      me.uid = u.uid;
+      me.name = r.name || u.username;
+      if (r.role === "faci") {
+        me.kind = "lecturer";
+        openTeacher();
+      } else {
+        me.kind = "student";
+        me.w = Number(String(r.w).replace(/\D/g, ""));
+        me.p = Number(r.p);
+        openStudent();
+      }
+    });
   }
 
   function setupIntro() {
-    var opts = "";
-    for (var n = 1; n <= MAX_WAREHOUSES; n++) opts += '<option value="' + n + '"' + (n === MAX_WAREHOUSES ? " selected" : "") + ">" + n + " (up to " + n * PLACES + " students)</option>";
-    $("tWarehouses").innerHTML = opts;
-    var today = new Date();
-    $("tFirst").value = isoDate(today);
-    $("tLast").value = isoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3));
-    $("tFirst").addEventListener("change", function () {
-      if (!$("tFirst").value) return;
-      var p = $("tFirst").value.split("-").map(Number);
-      $("tLast").value = isoDate(new Date(p[0], p[1] - 1, p[2] + 3));
-    });
-    var fromLink = new URLSearchParams(location.search).get("code");
-    if (fromLink) $("sCode").value = fromLink.toUpperCase();
-
-    $("studentForm").addEventListener("submit", function (e) {
+    if (!login) {
+      $("offlineNote").hidden = false;
+      $("signInForm").hidden = true;
+    }
+    $("signInForm").addEventListener("submit", function (e) {
       e.preventDefault();
-      var code = $("sCode").value.trim().toUpperCase(), name = $("sName").value.trim();
-      if (!/^[A-Z2-9]{6}$/.test(code)) { status("A class code is 6 letters and numbers, like K7Q2PX."); return; }
-      joinClass(code, name);
+      var name = $("loginName").value.trim(), pass = $("loginPass").value;
+      if (!name || !pass) { status("Please enter your username and password."); return; }
+      $("signInBtn").disabled = true;
+      status("Signing in…");
+      login.signIn(name, pass).then(function (u) {
+        $("loginPass").value = "";
+        return enterAs(u);
+      }).catch(function (err) {
+        status(err.message === "refused" ? "This account can't open the WMS. Please ask your lecturer." : err.message || "Couldn't sign in.");
+      }).then(function () { $("signInBtn").disabled = false; });
     });
-    $("teacherForm").addEventListener("submit", function (e) {
-      e.preventDefault();
-      createClass($("tName").value.trim(), Number($("tWarehouses").value), $("tFirst").value, $("tLast").value);
+    $("continueBtn").addEventListener("click", function () {
+      enterAs(login.user()).catch(function (err) { status(err.message); if (!login.user()) showIntro(); });
     });
-    $("rejoinBtn").addEventListener("click", function () {
-      me = loadSaved();
-      status("");
-      if (me.kind === "lecturer") openTeacher();
-      else openStudent();
-    });
-    $("forgetBtn").addEventListener("click", function () { forget(); showIntro(); });
-  }
-
-  function freshCode(triesLeft) {
-    var code = randomId(6, CODE_CHARS);
-    return send("GET", "wmsClasses/" + code + "/info").then(function (found) {
-      if (found === null) return code;
-      if (triesLeft > 1) return freshCode(triesLeft - 1);
-      throw new Error("Couldn't find a free code. Please try again.");
-    });
-  }
-
-  function createClass(name, warehouses, first, lastDay) {
-    var start = parseDate(first, false), end = parseDate(lastDay, true);
-    if (!(end > start)) { status("The last lesson day must be on or after the first one."); return; }
-    if (end - start > MAX_DAYS * DAY) { status("A class can be open for at most " + MAX_DAYS + " days."); return; }
-    status("Creating the class…");
-    freshCode(5).then(function (code) {
-      me = blankMe();
-      me.kind = "lecturer";
-      me.code = code;
-      me.name = name;
-      return send("PUT", base() + "/info", { created: SERVER_TIME, hostId: me.id, hostName: name, warehouses: warehouses, start: start, end: end })
-        .then(function () { status(""); openTeacher(); });
-    }).catch(function (err) {
-      status(err.message === "refused"
-        ? "The class couldn't be created: the database refused access. Check that the WMS rules are published in the WMS's Firebase project."
-        : err.message);
-    });
-  }
-
-  // Seats are filled in order: Warehouse 1 places 1–6, then Warehouse 2, and so on.
-  // A student who joins again with the same name gets their old place back.
-  function joinClass(code, name, triesLeft) {
-    triesLeft = triesLeft === undefined ? 15 : triesLeft;
-    status("Looking for class " + code + "…");
-    Promise.all([send("GET", "wmsClasses/" + code + "/info"), send("GET", "wmsClasses/" + code + "/seats")]).then(function (found) {
-      var inf = found[0], seats = found[1] || {};
-      if (!inf) throw new Error("No WMS class with the code " + code + " was found.");
-      var now = Date.now();
-      if (now < inf.start || now > inf.end) throw new Error("Class " + code + " is open from " + openText(inf) + ".");
-      var mine = null, free = null;
-      for (var w = 1; w <= inf.warehouses && !mine; w++) {
-        for (var p = 1; p <= PLACES; p++) {
-          var s = seats["w" + w] && seats["w" + w]["p" + p];
-          if (s && nameKey(s.name) === nameKey(name)) { mine = { w: w, p: p, name: s.name }; break; }
-          if (!s && !free) free = { w: w, p: p };
-        }
-      }
-      function enter(seat) {
-        me = blankMe();
-        me.kind = "student";
-        me.code = code;
-        me.w = seat.w;
-        me.p = seat.p;
-        me.name = seat.name || name;
-        status("");
-        openStudent();
-      }
-      if (mine) { enter(mine); return; }
-      if (!free) throw new Error("All " + inf.warehouses * PLACES + " places in this class are taken. Please ask your lecturer.");
-      return send("PUT", "wmsClasses/" + code + "/seats/w" + free.w + "/p" + free.p, { name: name, at: SERVER_TIME }).then(function () { enter(free); }, function (err) {
-        if (err.message === "refused" && triesLeft > 1) {
-          // Someone took that place first: wait a moment (a different time for each student) and try the next one.
-          return new Promise(function (done) { setTimeout(done, 100 + Math.random() * 400); }).then(function () { return joinClass(code, name, triesLeft - 1); });
-        }
-        throw err;
-      });
-    }).catch(function (err) {
-      status(err.message === "refused" ? "The class didn't accept you. It may be closed: check the lesson dates with your lecturer." : err.message || "Couldn't reach the server.");
-    });
+    $("introSignOut").addEventListener("click", function () { leave(true); });
   }
 
   /* ----- Student ----- */
@@ -436,27 +348,23 @@
 
   function openStudent() {
     stop();
-    save();
     show("student");
     view = "dash";
     sel = "";
     msg = null;
     $("sWho").textContent = me.name;
-    $("sWhere").textContent = "Warehouse " + me.w + " · Class " + me.code;
-    send("GET", base() + "/info").then(function (inf) {
-      if (!inf) { leave(); status("This class no longer exists."); return; }
-      info = inf;
-      stopWatching = watch(base() + "/log/w" + me.w, function (log) {
-        wlog = log || {};
-        renderStudent();
-      }, status);
-      // Notice if the lecturer deletes the class.
-      var stopInfo = watch(base() + "/info", function (v) {
-        if (v === null && me.kind === "student") { stopInfo(); leave(); status("This class has ended: the lecturer deleted it."); }
-      }, function () {});
-      var prevStop = stopWatching;
-      stopWatching = function () { prevStop(); stopInfo(); };
-    }).catch(function (err) { status(err.message); });
+    $("sWhere").textContent = "Warehouse " + me.w + " · Place " + me.p;
+    stopWatching = watch(base() + "/log/w" + me.w, function (log) {
+      // An empty log after work was done means the lecturer reset the warehouses.
+      if (!log && Object.keys(wlog).length) {
+        view = "dash";
+        sel = "";
+        pending = {};
+        msg = { seq: ++msgSeq, kind: "info", text: "Your lecturer reset the warehouses. Everything starts again from the beginning." };
+      }
+      wlog = log || {};
+      renderStudent();
+    }, status);
     renderStudent();
   }
 
@@ -723,7 +631,7 @@
     var r = replay(wlog), d = r.done[me.p], t = tasks(r);
     var sku = ($("fSku") ? $("fSku").value : "").trim().toUpperCase(), qty = $("fQty") ? Number($("fQty").value) : 0;
     var bin = ($("fBin") ? $("fBin").value : "").trim().toUpperCase();
-    var entry = { t: step, p: me.p, name: me.name, doc: docId, line: 0, sku: sku, qty: isFinite(qty) ? qty : 0, bin: bin, at: SERVER_TIME };
+    var entry = { t: step, p: me.p, name: me.name, uid: me.uid, doc: docId, line: 0, sku: sku, qty: isFinite(qty) ? qty : 0, bin: bin, at: SERVER_TIME };
     var why = "", okText = "", shortText = "";
     var doc = docById(me.p, docId);
     if (step === "rcv") {
@@ -775,7 +683,7 @@
       if (!why) pending[res.name] = { okText: okText, shortText: shortText };
       renderStudent();
     }, function (err) {
-      msg = { seq: ++msgSeq, kind: "warn", text: err.message === "refused" ? "Not saved: the class is closed (open " + openText(info) + ")." : err.message };
+      msg = { seq: ++msgSeq, kind: "warn", text: err.message === "refused" ? "Not saved: the system refused it. Try signing out and in again." : err.message };
       renderStudent();
       Object.keys(typed).forEach(function (id) { if ($(id) && !$(id).value) $(id).value = typed[id]; });
     });
@@ -806,60 +714,63 @@
       var step = e.target.getAttribute("data-step");
       submitStep(step, step === "put" ? "" : sel.split("/")[0]);
     });
-    $("leaveStudent").addEventListener("click", function () { leave(true); });
+    $("leaveStudent").addEventListener("click", function () { leave(true); status("You have signed out."); });
   }
 
   /* ----- Lecturer ----- */
 
   function openTeacher() {
     stop();
-    save();
-    stopWatching = watch(base(), function (c) {
-      if (!c || !c.info) {
-        var code = me.code;
-        leave();
-        status("No WMS class with the code " + code + " was found.");
-        return;
-      }
-      cls = c;
+    cls = { log: {}, roster: {} };
+    // The list of accounts (who is in which warehouse) is read once; the transaction logs are followed live.
+    send("GET", "roster").then(function (roster) {
+      cls.roster = roster || {};
+      renderTeacher();
+    }).catch(function (err) { status("Couldn't load the student list. " + (err.message === "refused" ? "This account isn't a lecturer account." : err.message)); });
+    stopWatching = watch(base() + "/log", function (log) {
+      cls.log = log || {};
       renderTeacher();
     }, status);
+    renderTeacher();
   }
 
+  // Every student account, in warehouse and place order, with their progress from the log.
   function studentRows(c) {
-    var rows = [];
-    for (var w = 1; w <= c.info.warehouses; w++) {
-      var r = replay(c.log && c.log["w" + w]);
-      for (var p = 1; p <= PLACES; p++) {
-        var s = c.seats && c.seats["w" + w] && c.seats["w" + w]["p" + p];
-        if (!s) continue;
-        rows.push({ w: w, p: p, name: s.name, steps: r.steps[p], docs: docsClosed(r, p), errors: r.errors[p], first: r.first[p], last: r.last[p] });
-      }
-    }
-    return rows;
+    var people = Object.keys(c.roster || {}).map(function (id) { return c.roster[id]; })
+      .filter(function (r) { return r && r.role === "student" && r.w && r.p >= 1 && r.p <= PLACES; })
+      .map(function (r) { return { w: Number(String(r.w).replace(/\D/g, "")), p: Number(r.p), name: r.name }; })
+      .sort(function (a, b) { return a.w - b.w || a.p - b.p; });
+    var replays = {};
+    return people.map(function (s) {
+      var r = replays[s.w] || (replays[s.w] = replay(c.log && c.log["w" + s.w]));
+      s.steps = r.steps[s.p] || 0;
+      s.docs = docsClosed(r, s.p);
+      s.errors = r.errors[s.p] || 0;
+      s.first = r.first[s.p];
+      s.last = r.last[s.p];
+      return s;
+    });
   }
 
   function renderTeacher() {
     show("teacher");
-    var c = cls, now = Date.now();
-    $("tTitle").textContent = "WMS class " + me.code;
-    $("tCode").textContent = me.code;
-    $("tLink").value = location.origin + location.pathname + "?code=" + me.code;
-    $("tOpen").textContent = (now < c.info.start ? "Opens " : now > c.info.end ? "Closed. Was open " : "Open ") + openText(c.info) +
-      (now < c.info.start ? ". Students can't join before then." : now > c.info.end ? "." : ". Students can join and work now.");
-    var rows = studentRows(c), finished = rows.filter(function (s) { return s.steps === STEPS_EACH; }).length;
-    $("tCounts").textContent = rows.length + " student" + (rows.length === 1 ? "" : "s") + " joined · " + finished + " finished all " + STEPS_EACH +
-      " steps · " + c.info.warehouses + " warehouses (room for " + c.info.warehouses * PLACES + ")";
+    var c = cls;
+    var rows = studentRows(c), started = rows.filter(function (s) { return s.last; }).length;
+    var finished = rows.filter(function (s) { return s.steps === STEPS_EACH; }).length;
+    $("tCounts").textContent = started + " of " + rows.length + " students started · " + finished + " finished all " + STEPS_EACH +
+      " steps · " + MAX_WAREHOUSES + " warehouses";
     var html = "";
-    for (var w = 1; w <= c.info.warehouses; w++) {
+    for (var w = 1; w <= MAX_WAREHOUSES; w++) {
       var log = (c.log && c.log["w" + w]) || {}, r = replay(log);
       var mine = rows.filter(function (s) { return s.w === w; });
-      html += '<li class="wm-card wm-house"><h3>Warehouse ' + w + "</h3>" +
+      var done = mine.filter(function (s) { return s.steps === STEPS_EACH; }).length;
+      var active = mine.some(function (s) { return s.last; });
+      html += '<li class="wm-card wm-house"><h3>Warehouse ' + w + ' <span class="wm-hint">' + (active ? done + " of " + mine.length + " finished" : "Not started") + "</span></h3>" +
         '<div class="wm-scroll"><table class="wm-table"><thead><tr><th>Place</th><th>Student</th><th>Steps</th><th>Documents closed</th><th>Refused entries</th><th>Last activity</th></tr></thead><tbody>' +
         (mine.length ? mine.map(function (s) {
           return "<tr><td>" + s.p + "</td><td>" + esc(s.name) + "</td><td>" + s.steps + "/" + STEPS_EACH + (s.steps === STEPS_EACH ? " ✓" : "") +
-            "</td><td>" + s.docs + "/" + DOCS_EACH + "</td><td>" + s.errors + "</td><td>" + stamp(s.last) + "</td></tr>";
-        }).join("") : '<tr><td colspan="6">No students yet.</td></tr>') + "</tbody></table></div>" +
+            "</td><td>" + s.docs + "/" + DOCS_EACH + "</td><td>" + s.errors + "</td><td>" + (s.last ? stamp(s.last) : '<span class="wm-hint">Not started</span>') + "</td></tr>";
+        }).join("") : '<tr><td colspan="6">No student accounts in this warehouse.</td></tr>') + "</tbody></table></div>" +
         '<details class="wm-more"><summary>Stock now</summary><div class="wm-scroll"><table class="wm-table"><thead><tr><th>SKU</th><th>Product</th><th>Bin</th><th>In bin</th><th>At dock R1</th></tr></thead><tbody>' +
         SKUS.map(function (s) {
           return '<tr><td class="wm-code">' + s.code + "</td><td>" + esc(s.name) + '</td><td class="wm-code">' + s.bin + "</td><td>" + r.bin[s.code] + "</td><td>" + (r.dock[s.code] || "") + "</td></tr>";
@@ -870,9 +781,10 @@
         }).join("") : "<li>No activity yet.</li>") + "</ul></details></li>";
     }
     $("houseGrid").innerHTML = html;
-    $("tDelete").hidden = c.info.hostId !== me.id;
+    var any = Object.keys(c.log || {}).length > 0;
     $("tSummary").disabled = !rows.length;
-    $("tLog").disabled = !rows.length;
+    $("tLog").disabled = !any;
+    $("tReset").disabled = !any;
   }
 
   function csv(rows) {
@@ -897,7 +809,7 @@
     var rows = [["Time", "Warehouse", "Place", "Student", "Step", "Document", "Line", "SKU entered", "Qty entered", "Bin entered", "Result", "System message"]];
     var step = { rcv: "Receive", put: "Put away", pick: "Pick", ship: "Pack & ship", err: "Refused" };
     var label = { ok: "Done", err: "Refused", short: "Not enough in bin", dup: "Repeat (ignored)" };
-    for (var w = 1; w <= c.info.warehouses; w++) {
+    for (var w = 1; w <= MAX_WAREHOUSES; w++) {
       var log = (c.log && c.log["w" + w]) || {}, r = replay(log);
       r.keys.forEach(function (k) {
         var e = log[k], res = r.results[k];
@@ -920,32 +832,26 @@
 
   function setupTeacher() {
     var today = function () { return isoDate(new Date()); };
-    $("tSummary").addEventListener("click", function () { if (cls) downloadFile("wms-" + me.code + "-students-" + today() + ".csv", summaryCsv(cls)); });
-    $("tLog").addEventListener("click", function () { if (cls) downloadFile("wms-" + me.code + "-transactions-" + today() + ".csv", logCsv(cls)); });
-    $("tCopy").addEventListener("click", function () {
-      var input = $("tLink");
-      var done = function () { $("tCopied").textContent = "Link copied"; };
-      try {
-        navigator.clipboard.writeText(input.value).then(done, function () { input.select(); $("tCopied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; });
-      } catch (err) { input.select(); $("tCopied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; }
-    });
-    $("tDelete").addEventListener("click", function () {
-      var code = me.code;
-      if (!window.confirm("Delete WMS class " + code + "? All its students, stock and transactions will be removed. Download the results first if you need them. This can't be undone.")) return;
-      stop();
-      send("PUT", "wmsClasses/" + code, null).then(function () {
-        leave();
-        status("Class " + code + " was deleted.");
+    $("tSummary").addEventListener("click", function () { if (cls) downloadFile("wms-students-" + today() + ".csv", summaryCsv(cls)); });
+    $("tLog").addEventListener("click", function () { if (cls) downloadFile("wms-transactions-" + today() + ".csv", logCsv(cls)); });
+    $("tReset").addEventListener("click", function () {
+      if (!window.confirm("Reset all warehouses? Every transaction is removed and all stock goes back to the start, ready for the next class. Download the results first if you need them. This can't be undone.")) return;
+      send("PUT", base() + "/log", null).then(function () {
+        status("All warehouses were reset.");
       }, function (err) {
-        openTeacher();
-        status("Couldn't delete the class. " + (err.message === "refused" ? "Check that the latest database rules are published." : err.message));
+        status("Couldn't reset the warehouses. " + (err.message === "refused" ? "This account isn't a lecturer account." : err.message));
       });
     });
-    $("tClose").addEventListener("click", function () { leave(true); });
+    $("tSignOut").addEventListener("click", function () { leave(true); status("You have signed out."); });
   }
 
   setupIntro();
   setupStudent();
   setupTeacher();
-  showIntro();
+  if (login && login.user()) {
+    // Signed in on this device before: go straight back to the warehouse or the board.
+    enterAs(login.user()).catch(function (err) { status(err.message === "refused" ? "This account can't open the WMS. Please ask your lecturer." : err.message); showIntro(); });
+  } else {
+    showIntro();
+  }
 })();

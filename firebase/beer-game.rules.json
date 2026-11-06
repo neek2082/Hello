@@ -1,0 +1,38 @@
+{
+  "rules": {
+    "roster": {
+      ".read": "auth != null && root.child('roster').child(auth.uid).child('role').val() === 'faci'",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && !data.exists()",
+        ".validate": "newData.hasChildren(['role', 'name']) && newData.child('name').val().toLowerCase() + '@beergame.example' === auth.token.email && (newData.child('role').val() === 'faci') === newData.child('name').val().toLowerCase().beginsWith('beergame_faci_') && (newData.child('role').val() === 'faci' || newData.child('role').val() === 'student')"
+      }
+    },
+    "beer": {
+      ".read": "auth != null && root.child('roster').child(auth.uid).child('role').val() === 'faci'",
+      ".write": "auth != null && root.child('roster').child(auth.uid).child('role').val() === 'faci'",
+      "games": {
+        ".read": "auth != null && root.child('roster').child(auth.uid).exists()",
+        "$g": {
+          "players": {
+            "$role": {
+              ".write": "auth != null && root.child('roster').child(auth.uid).child('team').val() === $g && ((!data.exists() && newData.child('id').val() === auth.uid) || (data.child('id').val() === auth.uid && (!newData.exists() || newData.child('id').val() === auth.uid)))",
+              ".validate": "($role === 'retailer' || $role === 'wholesaler' || $role === 'distributor' || $role === 'factory') && newData.hasChildren(['name', 'id']) && newData.child('name').isString() && newData.child('name').val().length <= 40"
+            }
+          },
+          "orders": {
+            "$w": {
+              "$role": {
+                ".write": "auth != null && !data.exists() && root.child('beer/games').child($g).child('players').child($role).child('id').val() === auth.uid",
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999"
+              }
+            }
+          },
+          "$other": {
+            ".write": "auth != null && root.child('roster').child(auth.uid).child('team').val() === $g"
+          }
+        }
+      }
+    }
+  }
+}

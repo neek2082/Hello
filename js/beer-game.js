@@ -1,20 +1,23 @@
 // Beer Game: four players each run one business in a beer supply chain, one week at a time.
-// Ways to play: a lecturer's class session (up to 25 games, students seated automatically),
-// a quick online game with friends, or practice alone against the computer.
+// Students and lecturers sign in with the accounts the lecturer hands out (BEERGAME_Student_001…,
+// BEERGAME_Faci_001…). A student account belongs to one team (Students 001–004 = Team 1, 005–008 = Team 2…)
+// and picks its business in that team's game. A lecturer account sees every team live and can reset all games.
+// Anyone can also practice alone against the computer without signing in.
 // Online data lives in a Firebase Realtime Database, reached with plain web requests (no library).
 (function () {
   // Address of the Firebase Realtime Database (project "beer-game-data", Singapore).
-  // If it is emptied, online play switches off and only practice mode works.
   var DB_URL = "https://beer-game-data-default-rtdb.asia-southeast1.firebasedatabase.app";
+  // The project's web key for signing in. It is meant to be public: what each account may do is decided
+  // by the database rules (firebase/beer-game.rules.json), not by this key.
+  var API_KEY = "";
+  var LOGIN_DOMAIN = "beergame.example"; // turns usernames into account names; ".example" can never receive email
 
   var WEEKS = 20;
   var START_STOCK = 12;
   var START_FLOW = 4;   // cases a week moving through the chain when the game starts
   var STOCK_COST = 1; // $ per case in stock, per week
   var OWED_COST = 2;  // $ per case owed but not yet delivered, per week
-  var MAX_GAMES = 25;   // games in one class session
-  var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  var SAVE_KEY = "beerGame";
+  var MAX_GAMES = 15;   // teams: 60 student accounts, 4 to a team
   var BEST_KEY = "beerGameBest";
 
   // Closest to the shoppers first. Beer flows down this list; orders flow up it.
@@ -243,38 +246,21 @@
     };
   }
 
-  // Online data is kept in the Firebase Realtime Database, read and written with its web address (REST).
-  // The live connection is an EventSource: the database sends a message every time the data changes.
-  //   beerGames/<code>               a quick game with friends
-  //   beerSessions/<code>/info       a lecturer's class session
-  //   beerSessions/<code>/games/g<n> game n of that session
-  //   beerScores/<code>              the result of a finished quick game
-  function FirebaseStore(base) {
-    function at(path) { return base.replace(/\/+$/, "") + "/" + path + ".json"; }
-    function send(method, path, body) {
-      return fetch(at(path), { method: method, body: body === undefined ? undefined : JSON.stringify(body) }).then(function (res) {
-        if (!res.ok) throw new Error(res.status === 401 ? "Someone else got there first. Please try again." : "The game server refused the request (error " + res.status + ").");
-        return res.json();
-      });
+  // Online data is kept in the Firebase Realtime Database (js/firebase-login.js reads and writes it, signed in).
+  //   roster/<account id>   who an account is: { role: "student" or "faci", name, team: "g1"… }
+  //   beer/games/g<n>       Team n's game
+  // A refused write means the database rules said no (for example, someone took that seat first).
+  var login = API_KEY && window.FirebaseLogin ? FirebaseLogin({ apiKey: API_KEY, domain: LOGIN_DOMAIN, saveKey: "beerLogin" }) : null;
+  function FirebaseStore() {
+    var data = FirebaseData(DB_URL, login);
+    function explain(err) {
+      throw new Error(err.message === "refused" ? "Someone else got there first, or you don't have access. Please try again." : err.message);
     }
     return {
-      get: function (path) { return send("GET", path); },
-      put: function (path, value) { return send("PUT", path, value); },
-      update: function (path, obj) { return send("PATCH", path, obj); },
-      watch: function (path, fn, onStatus) {
-        var data = null, es = new EventSource(at(path));
-        function handle(e, isPatch) {
-          var msg = JSON.parse(e.data);
-          data = isPatch ? applyUpdate(data || {}, msg.path, msg.data) : setPath(data, msg.path, msg.data);
-          fn(copy(data));
-        }
-        es.addEventListener("put", function (e) { handle(e, false); });
-        es.addEventListener("patch", function (e) { handle(e, true); });
-        es.addEventListener("cancel", function () { onStatus("This game can no longer be read."); });
-        es.onopen = function () { onStatus(""); };
-        es.onerror = function () { onStatus("Connection lost. Trying to reconnect…"); };
-        return function () { es.close(); };
-      }
+      get: function (path) { return data.get(path).catch(explain); },
+      put: function (path, value) { return data.put(path, value).catch(explain); },
+      update: function (path, obj) { return data.update(path, obj).catch(explain); },
+      watch: data.watch
     };
   }
 
@@ -295,7 +281,7 @@
     var list = [], games = (s && s.games) || {};
     for (var n = 1; n <= MAX_GAMES; n++) {
       var g = games["g" + n];
-      if (g && g.status === "done" && g.state) list.push(entryFor(g, "g" + n, "Game " + n));
+      if (g && g.status === "done" && g.state) list.push(entryFor(g, "g" + n, "Team " + n));
     }
     return list;
   }
@@ -348,34 +334,21 @@
     return out;
   }
 
-  var online = DB_URL ? FirebaseStore(DB_URL) : null;
+  var online = login ? FirebaseStore() : null;
   var store = null, stopWatching = null, game = null, session = null;
   var finishingWeek = 0, shownWeek = 0, startingGame = "", scoredGame = "";
-  // kind: "quick" (game with friends), "class" (student in a session), "lecturer" or "practice".
+  // kind: "class" (signed-in student), "lecturer" (signed-in lecturer) or "practice".
   var me = blankMe();
 
-  function blankMe() { return { kind: "", code: "", game: 0, role: "", id: randomId(12), name: "" }; }
+  function blankMe() { return { kind: "", game: 0, role: "", id: randomId(12), name: "" }; }
 
   function gamePath() {
-    if (me.kind === "class") return "beerSessions/" + me.code + "/games/g" + me.game;
     if (me.kind === "practice") return "practice/game";
-    return "beerGames/" + me.code;
+    return "beer/games/g" + me.game;
   }
   function gameTitle() {
-    if (me.kind === "class") return "Class " + me.code + " · Game " + me.game;
     if (me.kind === "practice") return "Practice game";
-    return "Game " + me.code;
-  }
-
-  function save() {
-    if (me.kind === "practice") return;
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(me)); } catch (e) { /* not saved: rejoining needs the code */ }
-  }
-  function loadSaved() {
-    try { return JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { return null; }
-  }
-  function forget() {
-    try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* nothing saved */ }
+    return "Team " + me.game;
   }
 
   function status(msg) {
@@ -384,11 +357,16 @@
   }
   function show(id) {
     ["intro", "lobby", "play", "results", "teacher"].forEach(function (s) { $(s).hidden = s !== id; });
+    var u = login && login.user();
+    $("whoBar").hidden = !(u && me.kind !== "practice" && id !== "intro");
+    if (u) $("whoName").textContent = u.username;
   }
   function playerName(g, key) {
     if (g.cpu && g.cpu[key]) return "Computer";
     return g.players && g.players[key] ? g.players[key].name : "Computer";
   }
+  // "BEERGAME_Student_005" is shown as "Student 005" on screen; downloads keep the full username.
+  function shortName(n) { return String(n).replace(/^BEERGAME_/i, "").replace(/_/g, " "); }
   function seatsTaken(g) { return ROLES.filter(function (r) { return g.players && g.players[r.key]; }).length; }
 
   function stop() {
@@ -403,53 +381,50 @@
     store = useStore || online;
     finishingWeek = 0;
     shownWeek = 0;
-    save();
     stopWatching = store.watch(gamePath(), onGame, status);
   }
 
-  function leave() {
+  // Back to the start page. Students and lecturers stay signed in unless signOut is true.
+  function leave(signOut) {
     stop();
-    if (me.kind !== "practice") forget();
+    if (signOut && login) login.signOut();
     me = blankMe();
     scoredGame = "";
+    startingGame = "";
     status("");
     showIntro();
   }
 
   function onGame(g) {
-    var seat = g && g.players && me.role ? g.players[me.role] : null;
+    var hadSeat = me.kind === "class" && !!me.role;
+    // An empty team (nobody has joined yet, or the lecturer reset the games) is a waiting room with free seats.
     if (me.kind === "class" && !g) {
-      // The lecturer deleted the class. Anyone already looking at their score card keeps it.
-      if (game && game.status === "done") { if (stopWatching) stopWatching(); stopWatching = null; return; }
-      leave();
-      status("This class has ended: the lecturer deleted it.");
-      return;
+      if (game && game.status && game.status !== "lobby") status("Your lecturer reset the games. Choose your business again to start a new game.");
+      g = {};
     }
-    if (me.kind === "class" && (!seat || seat.id !== me.id)) {
-      var where = gameTitle();
-      leave();
-      status("You no longer have a seat in " + where + ". The lecturer may have moved you: enter the class code again to get a new seat.");
-      return;
-    }
-    if (!g) {
-      var code = me.code;
-      leave();
-      status("No game with the code " + code + " was found.");
-      return;
+    var seat = g && g.players && me.role ? g.players[me.role] : null;
+    if (hadSeat && (!seat || seat.id !== me.id)) {
+      // The seat was freed by the lecturer, or by a reset.
+      me.role = "";
+      if (g.status && g.status !== "lobby") {
+        status("Your lecturer removed you from this game.");
+      } else if (!$("status").textContent) {
+        status("Your seat was freed. Choose your business again.");
+      }
     }
     game = g;
-    if (me.role && seat && seat.id !== me.id) {
-      status("Someone else took the " + roleName(me.role) + " role. Please choose another.");
-      me.role = "";
-      save();
+    if (me.kind === "class" && !me.role) {
+      // A student who already has a seat (for example on another device) gets it back.
+      ROLES.forEach(function (r) { if (g.players && g.players[r.key] && g.players[r.key].id === me.id) me.role = r.key; });
     }
     var st = g.status || "lobby";
     if (st === "lobby") {
-      // In a class, a game starts by itself once all four seats are filled.
-      if (me.kind === "class" && seatsTaken(g) === ROLES.length && startingGame !== gamePath()) {
-        startingGame = gamePath();
+      // A team's game starts by itself once all four seats are filled.
+      if (me.kind === "class" && me.role && seatsTaken(g) === ROLES.length && startingGame !== gamePath() + "/" + (g.created || "")) {
+        startingGame = gamePath() + "/" + (g.created || "");
         store.update(gamePath(), startUpdate(g)).catch(function (err) { startingGame = ""; status(err.message); });
       }
+      if (st === "lobby") finishingWeek = 0;
       renderLobby(g);
     } else if (st === "playing") {
       renderPlay(g);
@@ -465,139 +440,70 @@
     store.update(gamePath(), finishWeek(g)).catch(function (err) { finishingWeek = 0; status(err.message); });
   }
 
-  /* ----- Start screen ----- */
+  /* ----- Start screen: sign in, or practice ----- */
 
   function showIntro() {
     show("intro");
-    var saved = loadSaved();
-    var ok = !!(online && saved && saved.code);
-    $("rejoin").hidden = !ok;
-    if (!ok) return;
-    var text = saved.kind === "lecturer" ? "You were running class session " + saved.code + "."
-      : saved.kind === "class" ? "You were in class " + saved.code + ", Game " + saved.game + ", as the " + roleName(saved.role) + "."
-      : "You were in game " + saved.code + (saved.role ? " as the " + roleName(saved.role) : "") + ".";
-    $("rejoinText").textContent = text;
+    var u = login && login.user();
+    $("signInForm").hidden = !login || !!u;
+    $("signedIn").hidden = !u;
+    if (u) $("signedInName").textContent = u.username;
   }
 
-  // A new 6-character code that isn't used by a game or a class yet.
-  function freshCode(triesLeft) {
-    var code = randomId(6, CODE_CHARS);
-    return Promise.all([online.get("beerGames/" + code + "/created"), online.get("beerSessions/" + code + "/info")]).then(function (found) {
-      if (found[0] === null && found[1] === null) return code;
-      if (triesLeft > 1) return freshCode(triesLeft - 1);
-      throw new Error("Couldn't find a free code. Please try again.");
+  // Who this account is, from the roster the lecturer set up: a lecturer, or a student in a team.
+  function enterAs(u) {
+    status("Opening…");
+    return online.get("roster/" + u.uid).then(function (r) {
+      if (!r) throw new Error("This account isn't set up for the Beer Game. Please ask your lecturer.");
+      status("");
+      me = blankMe();
+      me.id = u.uid;
+      me.name = r.name || u.username;
+      if (r.role === "faci") {
+        me.kind = "lecturer";
+        openTeacher();
+      } else {
+        me.kind = "class";
+        me.game = Number(String(r.team).replace(/\D/g, ""));
+        openGame(online);
+      }
     });
   }
 
   function setupIntro() {
     $("costRule").textContent = "Every case on your shelves costs " + money(STOCK_COST) + " a week. Every case you still owe costs " + money(OWED_COST) + " a week.";
     $("practiceRole").innerHTML = ROLES.map(function (r) { return '<option value="' + r.key + '">' + r.name + "</option>"; }).join("");
-    var options = "";
-    for (var n = 1; n <= MAX_GAMES; n++) options += '<option value="' + n + '"' + (n === 8 ? " selected" : "") + ">" + n + " (up to " + n * 4 + " students)</option>";
-    $("lecturerGames").innerHTML = options;
-    if (!online) {
+    if (!login) {
       $("offlineNote").hidden = false;
-      document.querySelectorAll("#lecturerForm input, #lecturerForm select, #lecturerForm button, #createForm input, #createForm button, #joinForm input, #joinForm button")
-        .forEach(function (el) { el.disabled = true; });
+      $("signInForm").hidden = true;
     }
-    var params = new URLSearchParams(location.search);
-    var fromLink = params.get("code") || params.get("game");
-    if (fromLink) $("joinCode").value = fromLink.toUpperCase();
-
-    $("lecturerForm").addEventListener("submit", function (e) {
+    $("signInForm").addEventListener("submit", function (e) {
       e.preventDefault();
-      createSession($("lecturerName").value.trim(), Number($("lecturerGames").value));
+      var name = $("loginName").value.trim(), pass = $("loginPass").value;
+      if (!name || !pass) { status("Please enter your username and password."); return; }
+      $("signInBtn").disabled = true;
+      status("Signing in…");
+      login.signIn(name, pass).then(function (u) {
+        $("loginPass").value = "";
+        return enterAs(u);
+      }).catch(function (err) {
+        status(err.message || "Couldn't sign in.");
+      }).then(function () { $("signInBtn").disabled = false; });
     });
-    $("createForm").addEventListener("submit", function (e) {
-      e.preventDefault();
-      createQuickGame($("createName").value.trim());
-    });
-    $("joinForm").addEventListener("submit", function (e) {
-      e.preventDefault();
-      var code = $("joinCode").value.trim().toUpperCase();
-      if (!/^[A-Z2-9]{6}$/.test(code)) { status("A code is 6 letters and numbers, like K7Q2PX."); return; }
-      joinWithCode(code, $("joinName").value.trim());
+    $("continueBtn").addEventListener("click", function () {
+      enterAs(login.user()).catch(function (err) { status(err.message); if (!login.user()) showIntro(); });
     });
     $("practiceBtn").addEventListener("click", startPractice);
-    $("rejoinBtn").addEventListener("click", function () {
-      me = loadSaved();
-      status("");
-      if (me.kind === "lecturer") openTeacher();
-      else openGame(online);
-    });
-    $("forgetBtn").addEventListener("click", function () { forget(); showIntro(); });
-  }
-
-  function createQuickGame(name) {
-    status("Creating the game…");
-    freshCode(5).then(function (code) {
-      me = blankMe();
-      me.kind = "quick";
-      me.code = code;
-      me.name = name;
-      var g = { created: Date.now(), hostId: me.id, hostName: name, weeks: WEEKS, status: "lobby", week: 0 };
-      return online.update("beerGames/" + code, g).then(function () { status(""); openGame(online); });
-    }).catch(function (err) { status(err.message || "Couldn't reach the game server."); });
-  }
-
-  function createSession(name, games) {
-    status("Creating the class session…");
-    freshCode(5).then(function (code) {
-      me = blankMe();
-      me.kind = "lecturer";
-      me.code = code;
-      me.name = name;
-      var info = { created: Date.now(), hostId: me.id, hostName: name, games: Math.max(1, Math.min(MAX_GAMES, games)) };
-      return online.put("beerSessions/" + code + "/info", info).then(function () { status(""); openTeacher(); });
-    }).catch(function (err) { status(err.message || "Couldn't reach the game server."); });
-  }
-
-  // The same box joins a class session or a quick game, whichever the code belongs to.
-  function joinWithCode(code, name) {
-    status("Looking for " + code + "…");
-    online.get("beerSessions/" + code + "/info").then(function (info) {
-      if (info) return takeClassSeat(code, info.games, name, 5);
-      return online.get("beerGames/" + code + "/created").then(function (created) {
-        if (created === null) throw new Error("No game or class with the code " + code + " was found.");
-        me = blankMe();
-        me.kind = "quick";
-        me.code = code;
-        me.name = name;
-        status("");
-        openGame(online);
-      });
-    }).catch(function (err) { status(err.message || "Couldn't reach the game server."); });
-  }
-
-  // Seats students in order: Game 1 Retailer, Wholesaler, Distributor, Factory, then Game 2, and so on.
-  // Each seat can only be taken once, so if two students grab the same seat, one tries the next free one.
-  function takeClassSeat(code, games, name, triesLeft) {
-    var base = "beerSessions/" + code + "/games/g", reads = [];
-    for (var n = 1; n <= games; n++) reads.push(Promise.all([online.get(base + n + "/status"), online.get(base + n + "/players")]));
-    return Promise.all(reads).then(function (all) {
-      var seat = null;
-      all.some(function (found, i) {
-        if (found[0] && found[0] !== "lobby") return false;
-        var free = ROLES.filter(function (r) { return !(found[1] && found[1][r.key]); })[0];
-        if (free) seat = { game: i + 1, role: free.key };
-        return !!seat;
-      });
-      if (!seat) throw new Error("All " + games + " games in this class are full or have already started. Please ask your lecturer.");
-      var id = randomId(12);
-      return online.put(base + seat.game + "/players/" + seat.role, { name: name, id: id }).then(function () {
-        me = blankMe();
-        me.kind = "class";
-        me.code = code;
-        me.game = seat.game;
-        me.role = seat.role;
-        me.id = id;
-        me.name = name;
-        status("");
-        openGame(online);
-      }, function (err) {
-        if (triesLeft > 1) return takeClassSeat(code, games, name, triesLeft - 1);
-        throw err;
-      });
+    $("introSignOut").addEventListener("click", function () { leave(true); });
+    $("signOutBtn").addEventListener("click", function () {
+      // Free the seat in a game that hasn't started, so a classmate can take it.
+      if (me.kind === "class" && me.role && game && (game.status || "lobby") === "lobby") {
+        var update = {};
+        update["players/" + me.role] = null;
+        store.update(gamePath(), update).catch(function () {});
+      }
+      leave(true);
+      status("You have signed out.");
     });
   }
 
@@ -613,35 +519,25 @@
     local.put(gamePath(), g).then(function () { return local.update(gamePath(), startUpdate(g)); }).then(function () { openGame(local); });
   }
 
-  /* ----- Waiting room ----- */
+  /* ----- Waiting room: each student picks a business in their team ----- */
 
   function renderLobby(g) {
     show("lobby");
-    var inClass = me.kind === "class", players = g.players || {}, taken = seatsTaken(g);
+    var players = g.players || {}, taken = seatsTaken(g);
     $("lobbyTitle").textContent = gameTitle();
-    $("shareBox").hidden = inClass;
-    $("shareLink").value = location.origin + location.pathname + "?code=" + me.code;
     $("roleList").innerHTML = ROLES.map(function (r) {
       var p = players[r.key], who;
       if (p && p.id === me.id) who = "<strong>You</strong>";
-      else if (p) who = esc(p.name);
-      else if (inClass) who = '<span class="bg-hint">Waiting for a student…</span>';
-      else who = '<button type="button" class="btn" data-role="' + r.key + '">Take this role</button>';
+      else if (p) who = esc(shortName(p.name));
+      else who = '<button type="button" class="btn" data-role="' + r.key + '">' + (me.role ? "Switch to this role" : "Take this role") + "</button>";
       return '<li class="bg-card bg-role"><div><h3>' + r.name + '</h3><p class="bg-hint">' + r.desc + "</p></div><div>" + who + "</div></li>";
     }).join("");
 
-    var isHost = !inClass && g.hostId === me.id;
-    $("startBtn").hidden = !isHost;
-    $("startBtn").disabled = taken === 0;
-    var note;
-    if (inClass) {
-      note = "You are the " + roleName(me.role) + ". The game starts by itself when all 4 seats are filled (" + taken + " of 4 so far).";
-    } else {
-      note = me.role ? "" : "Choose the business you want to run. ";
-      note += isHost
-        ? "Press Start when everyone has joined. Any business without a player is run by the computer."
-        : "Waiting for " + g.hostName + " to start the game.";
-    }
+    // A seated student can start without waiting for absent teammates: the computer runs the empty seats.
+    $("startBtn").hidden = !me.role || taken === ROLES.length;
+    var note = me.role
+      ? "You are the " + roleName(me.role) + ". The game starts by itself when all 4 seats are filled (" + taken + " of 4 so far). If a teammate is away, press Start now and the computer runs their business."
+      : "Choose the business you want to run. Your team is Students " + (me.game * 4 - 3) + "–" + (me.game * 4) + ".";
     $("lobbyNote").textContent = note;
   }
 
@@ -652,28 +548,15 @@
       var update = {};
       if (me.role) update["players/" + me.role] = null;
       update["players/" + key] = { name: me.name, id: me.id };
+      if (!game || !game.created) update.created = Date.now();
       var before = me.role;
       me.role = key;
-      save();
-      store.update(gamePath(), update).catch(function (err) { me.role = before; save(); status(err.message); });
-    });
-    $("copyLink").addEventListener("click", function () {
-      var input = $("shareLink");
-      var done = function () { $("copied").textContent = "Link copied"; };
-      try {
-        navigator.clipboard.writeText(input.value).then(done, function () { input.select(); $("copied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; });
-      } catch (err) { input.select(); $("copied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; }
+      status("");
+      store.update(gamePath(), update).catch(function (err) { me.role = before; status(err.message); if (game) renderLobby(game); });
     });
     $("startBtn").addEventListener("click", function () {
+      if (!window.confirm("Start now? The computer will run every business that has no player.")) return;
       store.update(gamePath(), startUpdate(game)).catch(function (err) { status(err.message); });
-    });
-    $("leaveLobby").addEventListener("click", function () {
-      if (me.role && game && game.players && game.players[me.role] && game.players[me.role].id === me.id) {
-        var update = {};
-        update["players/" + me.role] = null;
-        store.update(gamePath(), update);
-      }
-      leave();
     });
   }
 
@@ -691,7 +574,7 @@
   function renderPlay(g) {
     show("play");
     renderChain();
-    $("weekLabel").textContent = (me.kind === "class" ? "Game " + me.game + " · " : "") + "Week " + g.week + " of " + g.weeks;
+    $("weekLabel").textContent = (me.kind === "class" ? "Team " + me.game + " · " : "") + "Week " + g.week + " of " + g.weeks;
     if (!me.role) {
       $("playTitle").textContent = gameTitle();
       $("spectator").hidden = false;
@@ -747,7 +630,7 @@
     $("waiting").hidden = mine || (!others.length && !me.role);
     var text = placed !== undefined ? "Order sent: " + placed + " cases. " : "";
     if (others.length) {
-      text += "Waiting for: " + others.map(function (r) { return r.name + " (" + playerName(g, r.key) + ")"; }).join(", ") + ".";
+      text += "Waiting for: " + others.map(function (r) { return r.name + " (" + shortName(playerName(g, r.key)) + ")"; }).join(", ") + ".";
     } else if (!mine) {
       text += "Moving to the next week…";
     }
@@ -788,7 +671,7 @@
       update["cpu/" + me.role] = null;
       store.update(gamePath(), update).catch(function (err) { status(err.message); });
     });
-    $("leavePlay").addEventListener("click", leave);
+    $("leavePlay").addEventListener("click", function () { leave(false); });
   }
 
   /* ----- Score card and results ----- */
@@ -806,12 +689,11 @@
     return { weeks: weeks, demand: demand, orders: orders };
   }
 
-  function myId() { return me.kind === "class" ? "g" + me.game : me.code; }
+  function myId() { return me.kind === "class" ? "g" + me.game : "practice"; }
 
   function renderResults(g) {
     show("results");
-    if (me.kind !== "practice") forget(); // the game is over, so this device shouldn't offer to go back to it
-    var mine = entryFor(g, myId(), me.kind === "class" ? "Game " + me.game : "");
+    var mine = entryFor(g, myId(), me.kind === "class" ? "Team " + me.game : "");
 
     $("scoreEyebrow").textContent = "Score card · " + gameTitle();
     $("scoreTeam").textContent = "Team: " + teamText({ names: mine.names });
@@ -867,9 +749,7 @@
     $("bestTeamBox").hidden = false;
     $("teamRank").textContent = "…";
     $("bestTeam").textContent = "…";
-    var loading = me.kind === "class"
-      ? online.get("beerSessions/" + me.code).then(classEntries)
-      : saveQuickScore(g, mine);
+    var loading = online.get("beer/games").then(function (games) { return classEntries({ games: games }); });
     loading.then(function (list) {
       if (!list.some(function (e) { return e.id === mine.id; })) list.push(mine);
       showRanking(list, mine);
@@ -877,26 +757,6 @@
       $("teamRank").textContent = "—";
       $("bestTeam").textContent = "—";
       $("rankTable").innerHTML = "<tbody><tr><td>Couldn't load the ranking. " + esc(err.message) + "</td></tr></tbody>";
-    });
-  }
-
-  // A quick game's result is saved once under beerScores. The first player in the chain saves it; everyone
-  // else waits a moment and only saves it if it still isn't there. The database keeps only one copy.
-  function saveQuickScore(g, mine) {
-    var first = ROLES.filter(function (r) { return g.players && g.players[r.key]; })[0];
-    var saver = first && g.players[first.key].id === me.id;
-    var entry = { cost: mine.cost, roles: mine.roles, names: mine.names, date: mine.date };
-    function readAll() { return online.get("beerScores"); }
-    function saveIfMissing(all) {
-      if (all && all[me.code]) return all;
-      return online.put("beerScores/" + me.code, entry).catch(function () {}).then(readAll);
-    }
-    var ready = saver ? readAll().then(saveIfMissing)
-      : new Promise(function (done) { setTimeout(done, 3000); }).then(readAll).then(saveIfMissing);
-    return ready.then(function (all) {
-      all = all || {};
-      return Object.keys(all).map(function (code) { var e = all[code]; e.id = code; e.label = ""; return e; })
-        .filter(function (e) { return typeof e.cost === "number" && e.roles && e.names; });
     });
   }
 
@@ -969,9 +829,13 @@
   function setupResults() {
     $("legend").innerHTML = '<span class="bg-key bg-key-demand">Shoppers</span>' +
       ROLES.map(function (r) { return '<span class="bg-key" style="--c:var(--s-' + r.key + ')">' + r.name + "</span>"; }).join("");
-    $("againBtn").addEventListener("click", leave);
+    $("againBtn").addEventListener("click", function () {
+      if (me.kind === "practice") { leave(false); return; }
+      leave(true);
+      status("You have signed out.");
+    });
     $("refreshRank").addEventListener("click", function () {
-      if (game) loadRanking(game, entryFor(game, myId(), "Game " + me.game));
+      if (game) loadRanking(game, entryFor(game, myId(), "Team " + me.game));
     });
     var timer;
     window.addEventListener("resize", function () {
@@ -985,51 +849,45 @@
   function openTeacher() {
     stop();
     store = online;
-    save();
-    stopWatching = store.watch("beerSessions/" + me.code, onSession, status);
+    stopWatching = store.watch("beer/games", function (games) {
+      session = { games: games || {} };
+      renderTeacher(session);
+    }, status);
   }
 
-  function onSession(s) {
-    if (!s || !s.info) {
-      var code = me.code;
-      leave();
-      status("No class session with the code " + code + " was found.");
-      return;
-    }
-    session = s;
-    renderTeacher(s);
+  // One business's line on a team card: who plays it, and its stock, orders still owed and cost so far.
+  function seatLine(g, i, r) {
+    var p = g.players && g.players[r.key], st = g.status || "lobby", b = g.state && g.state[r.key], who;
+    if (p) who = esc(shortName(p.name)) + (g.cpu && g.cpu[r.key] ? ' <span class="bg-hint">(computer playing)</span>' : "");
+    else who = '<span class="bg-hint">' + (st === "lobby" ? "Empty seat" : "Computer") + "</span>";
+    var numbers = b && st !== "lobby"
+      ? '<span class="bg-seat-stats">Stock ' + b.stock + " · Owed " + b.owed + " · " + money(b.total) + "</span>" : "";
+    return '<li><span class="bg-seat-role">' + r.name + '</span><span class="bg-seat-name">' + who + numbers + "</span>" +
+      (p ? '<button type="button" class="bg-x" data-remove="' + i + "/" + r.key + '" aria-label="Remove ' + esc(p.name) + " from Team " + i + '">×</button>' : "") + "</li>";
   }
 
   function renderTeacher(s) {
     show("teacher");
-    var n = s.info.games, games = s.games || {}, students = 0, playing = 0, done = 0, html = "";
-    $("teacherTitle").textContent = "Class session " + me.code;
-    $("teacherCode").textContent = me.code;
-    $("teacherLink").value = location.origin + location.pathname + "?code=" + me.code;
-    for (var i = 1; i <= n; i++) {
-      var g = games["g" + i] || {}, players = g.players || {}, st = g.status || "lobby", taken = seatsTaken(g);
+    var games = s.games || {}, students = 0, playing = 0, done = 0, html = "";
+    for (var i = 1; i <= MAX_GAMES; i++) {
+      var g = games["g" + i] || {}, st = g.status || "lobby", taken = seatsTaken(g);
       students += taken;
       if (st === "playing") playing++;
       if (st === "done") done++;
-      var label = st === "lobby" ? (taken ? "Waiting · " + taken + " of 4 seats" : "Empty")
+      var label = st === "lobby" ? (taken ? "Waiting · " + taken + " of 4 seats" : "No one yet")
         : st === "playing" ? "Playing · week " + g.week + " of " + g.weeks : "Finished";
-      html += '<li class="bg-card bg-game" data-status="' + st + '"><div class="bg-game-head"><h3>Game ' + i + '</h3><span class="bg-tag">' + label + "</span></div>" +
-        '<ul class="bg-seats">' + ROLES.map(function (r) {
-          var p = players[r.key], who;
-          if (p) who = esc(p.name) + (g.cpu && g.cpu[r.key] ? ' <span class="bg-hint">(computer playing)</span>' : "");
-          else who = '<span class="bg-hint">' + (st === "lobby" ? "Empty seat" : "Computer") + "</span>";
-          return "<li><span class=\"bg-seat-role\">" + r.name + "</span><span class=\"bg-seat-name\">" + who + "</span>" +
-            (p ? '<button type="button" class="bg-x" data-remove="' + i + "/" + r.key + '" aria-label="Remove ' + esc(p.name) + " from Game " + i + '">×</button>' : "") + "</li>";
-        }).join("") + "</ul>" +
-        (g.state ? '<p class="bg-hint">Team cost ' + (st === "done" ? "" : "so far ") + "<strong>" + money(teamCost(g.state)) + "</strong></p>" : "") +
+      html += '<li class="bg-card bg-game" data-status="' + st + '"><div class="bg-game-head"><h3>Team ' + i +
+        ' <span class="bg-hint">Students ' + String(i * 4 - 3).padStart(3, "0") + "–" + String(i * 4).padStart(3, "0") + '</span></h3><span class="bg-tag">' + label + "</span></div>" +
+        '<ul class="bg-seats">' + ROLES.map(function (r) { return seatLine(g, i, r); }).join("") + "</ul>" +
+        (g.state && st !== "lobby" ? '<p class="bg-hint">Team cost ' + (st === "done" ? "" : "so far ") + "<strong>" + money(teamCost(g.state)) + "</strong></p>" : "") +
         (st === "lobby" && taken > 0 && taken < ROLES.length ? '<button type="button" class="btn" data-start="' + i + '">Start now with computer players</button>' : "") +
         "</li>";
     }
     $("gameGrid").innerHTML = html;
     $("teacherCounts").textContent = students + " student" + (students === 1 ? "" : "s") + " seated · " + playing + " playing · " +
-      done + " finished · " + n + " games (room for " + n * 4 + " students)";
-    $("deleteClass").hidden = s.info.hostId !== me.id;
+      done + " finished · " + MAX_GAMES + " teams (room for " + MAX_GAMES * 4 + " students)";
     $("downloadClass").disabled = students === 0;
+    $("resetAll").disabled = !Object.keys(games).length;
     var list = classEntries(s);
     $("teacherRanking").hidden = !list.length;
     if (list.length) {
@@ -1038,7 +896,7 @@
     }
   }
 
-  // One row per game: names and costs for each business, plus the team's rank among finished games.
+  // One row per team: names and costs for each business, plus the team's rank among finished games.
   // Opens in Google Sheets or Excel.
   function classCsv(s) {
     function cell(v) {
@@ -1047,17 +905,17 @@
     }
     var ranks = {};
     byCost(classEntries(s)).forEach(function (e, i) { ranks[e.id] = i + 1; });
-    var head = ["Game", "Status", "Week reached", "Team cost"];
-    ROLES.forEach(function (r) { head.push(r.name + " player", r.name + " cost"); });
+    var head = ["Team", "Status", "Week reached", "Team cost"];
+    ROLES.forEach(function (r) { head.push(r.name + " player", r.name + " stock", r.name + " owed", r.name + " cost"); });
     head.push("Team rank");
     var rows = [head], games = s.games || {};
-    for (var n = 1; n <= s.info.games; n++) {
+    for (var n = 1; n <= MAX_GAMES; n++) {
       var g = games["g" + n] || {}, st = g.status || "lobby";
       var row = [n, st === "done" ? "Finished" : st === "playing" ? "Playing" : seatsTaken(g) ? "Waiting" : "Empty",
         g.week || "", g.state ? teamCost(g.state).toFixed(2) : ""];
       ROLES.forEach(function (r) {
-        var p = g.players && g.players[r.key];
-        row.push(p ? p.name : st === "lobby" ? "" : "Computer", g.state ? g.state[r.key].total.toFixed(2) : "");
+        var p = g.players && g.players[r.key], b = g.state && g.state[r.key];
+        row.push(p ? p.name : st === "lobby" ? "" : "Computer", b ? b.stock : "", b ? b.owed : "", b ? b.total.toFixed(2) : "");
       });
       row.push(ranks["g" + n] || "");
       rows.push(row);
@@ -1081,48 +939,30 @@
     $("downloadClass").addEventListener("click", function () {
       if (!session) return;
       var day = new Date().toISOString().slice(0, 10);
-      downloadFile("beer-game-class-" + me.code + "-" + day + ".csv", classCsv(session));
+      downloadFile("beer-game-results-" + day + ".csv", classCsv(session));
     });
-    $("deleteClass").addEventListener("click", function () {
-      var code = me.code;
-      if (!window.confirm("Delete class " + code + "? All its games, seats and ranking will be removed. This can't be undone.")) return;
-      if (stopWatching) stopWatching(); // stop listening first, so the board doesn't report the class as missing
-      stopWatching = null;
-      store.put("beerSessions/" + code, null).then(function () {
-        leave();
-        status("Class " + code + " was deleted.");
+    $("resetAll").addEventListener("click", function () {
+      if (!window.confirm("Reset all games? Every team's game, seats and results will be removed, and students choose their business again. Download the results first if you need them. This can't be undone.")) return;
+      store.put("beer/games", null).then(function () {
+        status("All games were reset. Students can now choose their business for a new game.");
       }, function (err) {
-        openTeacher();
-        status("Couldn't delete the class. " + err.message);
+        status("Couldn't reset the games. " + err.message);
       });
     });
     $("gameGrid").addEventListener("click", function (e) {
       var remove = e.target.getAttribute("data-remove"), start = e.target.getAttribute("data-start");
-      var base = "beerSessions/" + me.code + "/games/g";
+      var base = "beer/games/g";
       if (remove) {
         var parts = remove.split("/"), g = session.games["g" + parts[0]], p = g.players[parts[1]];
-        if (!window.confirm("Remove " + p.name + " from Game " + parts[0] + "? They can join again with the class code and get the next free seat.")) return;
+        if (!window.confirm("Remove " + p.name + " from Team " + parts[0] + "? Their seat becomes free; if the game has started, the computer takes over that business.")) return;
         var update = {};
         update["players/" + parts[1]] = null;
+        if (g.status && g.status !== "lobby") update["cpu/" + parts[1]] = true;
         store.update(base + parts[0], update).catch(function (err) { status(err.message); });
       }
       if (start) {
         store.update(base + start, startUpdate(session.games["g" + start])).catch(function (err) { status(err.message); });
       }
-    });
-    $("copyTeacherLink").addEventListener("click", function () {
-      var input = $("teacherLink");
-      var done = function () { $("teacherCopied").textContent = "Link copied"; };
-      try {
-        navigator.clipboard.writeText(input.value).then(done, function () { input.select(); $("teacherCopied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; });
-      } catch (err) { input.select(); $("teacherCopied").textContent = "Press Ctrl+C (or Cmd+C) to copy"; }
-    });
-    // Closing keeps the class saved on this device, so the start page offers to go back to it.
-    $("leaveTeacher").addEventListener("click", function () {
-      stop();
-      me = blankMe();
-      status("");
-      showIntro();
     });
   }
 
@@ -1131,5 +971,10 @@
   setupPlay();
   setupResults();
   setupTeacher();
-  showIntro();
+  if (login && login.user()) {
+    // Signed in on this device before: go straight back to the game or the board.
+    enterAs(login.user()).catch(function (err) { status(err.message); showIntro(); });
+  } else {
+    showIntro();
+  }
 })();

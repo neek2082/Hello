@@ -74,6 +74,7 @@
 }
 
 .wm-stack input[type="text"],
+.wm-stack input[type="password"],
 .wm-stack input[type="number"],
 .wm-stack input[type="date"],
 .wm-stack select {
@@ -758,4 +759,12 @@ body:has(#student:not([hidden])) .container {
   padding: 8px 0;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* Lecturer board title with Sign out on the right */
+.wm-spread {
+  justify-content: space-between;
+}
+.wm-spread h1 {
+  margin: 0;
 }
