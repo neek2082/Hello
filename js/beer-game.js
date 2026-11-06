@@ -9,7 +9,7 @@
   var DB_URL = "https://beer-game-data-default-rtdb.asia-southeast1.firebasedatabase.app";
   // The project's web key for signing in. It is meant to be public: what each account may do is decided
   // by the database rules (firebase/beer-game.rules.json), not by this key.
-  var API_KEY = "";
+  var API_KEY = "AIzaSyAT2R4BICn7lJlw9p5tBo4oIBIeu8VlwHY";
   var LOGIN_DOMAIN = "beergame.example"; // turns usernames into account names; ".example" can never receive email
 
   var WEEKS = 20;
