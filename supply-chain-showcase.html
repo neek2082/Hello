@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How a Supply Chain Works</title>
+<style>
+  :root{
+    --navy:#0b3d91; --blue:#1e6fd9; --mid:#5b9bec; --light:#eaf3ff; --pale:#f5f9ff;
+    --line:#c9ddf7; --text:#14284b; --muted:#5a6f91; --white:#ffffff; --good:#1e6fd9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;background:var(--pale);color:var(--text)}
+  .emoji{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+  header{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;padding:22px 24px 18px}
+  header h1{margin:0 0 6px;font-size:26px;letter-spacing:.2px}
+  header p{margin:0;opacity:.92;max-width:900px;line-height:1.45}
+  main{max-width:1320px;margin:0 auto;padding:18px 16px 40px}
+
+  /* order cards */
+  .orders{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+  .card{background:#fff;border:2px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 8px rgba(11,61,145,.06)}
+  .card .top{display:flex;align-items:center;gap:12px}
+  .card .big{font-size:40px;line-height:1}
+  .card h3{margin:0;font-size:18px;color:var(--navy)}
+  .card .route{font-size:12.5px;color:var(--muted);line-height:1.35}
+  .card button{background:var(--blue);color:#fff;border:none;border-radius:12px;padding:12px 10px;font-size:16px;font-weight:600;cursor:pointer;transition:transform .08s,background .15s}
+  .card button:hover{background:var(--navy)}
+  .card button:active{transform:scale(.96)}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
+  .stat{background:var(--light);border-radius:10px;padding:6px 4px}
+  .stat b{display:block;font-size:20px;color:var(--navy)}
+  .stat span{font-size:11.5px;color:var(--muted)}
+  .bump{animation:bump .35s ease}
+  @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+
+  /* status bar */
+  .status{margin:16px 0 12px;background:#fff;border:2px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:14px 26px}
+  .status .msg{font-size:17px;font-weight:600;color:var(--navy);flex:1 1 320px}
+  .status .msg.stopped{color:var(--muted)}
+  .speedctl{flex:0 1 230px;font-size:13px;color:var(--navy)}
+  .speedctl label{display:block;margin-bottom:4px}
+  .speedctl label span{color:var(--muted);font-size:12px}
+  .speedctl input{width:100%;accent-color:var(--blue);cursor:pointer}
+  .clock{font-size:15px;color:var(--navy);font-weight:600;white-space:nowrap}
+  .clock small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+  .resetbtn{background:#fff;color:var(--blue);border:2px solid var(--blue);border-radius:10px;padding:8px 14px;font-weight:600;cursor:pointer}
+  .resetbtn:hover{background:var(--light)}
+
+  /* map */
+  .mapwrap{background:#fff;border:2px solid var(--line);border-radius:16px;overflow:hidden}
+  svg{display:block;width:100%;height:auto}
+  .node-name{font-size:12px;font-weight:600;fill:var(--navy)}
+  .badge{font-size:13px;font-weight:600;fill:var(--text)}
+  .region{font-size:13px;font-weight:700;letter-spacing:1.2px;fill:var(--navy);opacity:.75}
+  .sea-label{font-size:13px;fill:#ffffff;font-weight:600}
+  .vlabel{font-size:10.5px;font-weight:700;fill:var(--navy)}
+
+  /* bottom panels */
+  .lower{display:grid;grid-template-columns:1fr 1.25fr;gap:14px;margin-top:14px}
+  @media (max-width:900px){.lower{grid-template-columns:1fr}}
+  .panel{background:#fff;border:2px solid var(--line);border-radius:16px;padding:14px 16px}
+  .panel h2{margin:0 0 10px;font-size:18px;color:var(--navy)}
+  #log{list-style:none;margin:0;padding:0;font-size:14px}
+  #log li{padding:7px 4px;border-bottom:1px solid var(--light);display:flex;gap:10px}
+  #log li .when{color:var(--muted);font-size:12px;white-space:nowrap;min-width:78px;padding-top:1px}
+  #log li.new{animation:fadein .5s ease}
+  @keyframes fadein{from{background:var(--light)}to{background:transparent}}
+  .path{margin:0 0 14px}
+  .path h4{margin:0 0 6px;font-size:15px;color:var(--navy)}
+  .chips{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+  .chip{background:var(--light);border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:12px;white-space:nowrap}
+  .arrow{color:var(--mid);font-size:12px}
+  .facts{margin:6px 0 0;padding-left:18px;font-size:14px;line-height:1.55}
+  .empty{color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="emoji">🌏</span> How a Supply Chain Works</h1>
+  <p>Pick a product and press its button to place an order — each press is one order. Watch factories, ships, trucks and warehouses spring into action to get it to the customer collection point. When every order has been collected, everything stops.</p>
+</header>
+
+<main>
+  <section class="orders" id="orders"></section>
+
+  <section class="status">
+    <div class="msg stopped" id="statusMsg">⏸ Everything is stopped — no orders waiting. Press an order button to start.</div>
+    <div class="speedctl">
+      <label for="speedSlider">Animation speed: <b id="speedVal">5</b> <span>(1 = slow, 10 = fast)</span></label>
+      <input type="range" id="speedSlider" min="1" max="10" step="1" value="5">
+    </div>
+    <div class="clock" id="clock">Day 1, 08:00<small>Supply chain clock</small></div>
+    <button class="resetbtn" id="resetBtn">Start over</button>
+  </section>
+
+  <div class="mapwrap">
+    <svg id="map" viewBox="0 0 1320 640" role="img" aria-label="Map of the supply chain"></svg>
+  </div>
+
+  <section class="lower">
+    <div class="panel">
+      <h2>What's happening now</h2>
+      <ul id="log"><li class="empty">Nothing yet — place an order to get things moving.</li></ul>
+    </div>
+    <div class="panel">
+      <h2>How each product travels</h2>
+      <div id="paths"></div>
+      <h2 style="margin-top:6px">Good to know</h2>
+      <ul class="facts">
+        <li><b>Batches:</b> factories make items in batches. If you order 1 juice, the factory still makes 24 — the extras wait at the Distribution Centre, so the next juice orders are collected much faster.</li>
+        <li><b>Trucks</b> wait until they are full, or until they have waited a few hours, before leaving.</li>
+        <li><b>Ships</b> leave the Export Port once a day and carry every product together. The sea trip takes about 2½ days.</li>
+        <li><b>Speed:</b> use the speed slider (1 = slow, 10 = fast) to set how fast everything moves. With no orders waiting, everything stops.</li>
+        <li><b>Blue number on each place:</b> how many items are there right now — waiting, or being made or handled.</li>
+        <li>Only the factory reacts to orders. Everything after it simply passes items along as soon as it can.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ------------------------------------------------------------------
+   1. PLACES ON THE MAP
+------------------------------------------------------------------ */
+const NODES = {
+  elec : {name:"Electronics\nFactory",  icon:"🏭", x:90,   y:110, gear:true},
+  shoe : {name:"Shoe\nFactory",         icon:"🏭", x:90,   y:320, gear:true},
+  bike : {name:"Bike Parts\nFactory",   icon:"🏭", x:90,   y:530, gear:true},
+  asm1 : {name:"Phone\nAssembly Plant", icon:"🔧", x:245,  y:110, gear:true},
+  expT : {name:"Container\nTerminal",   icon:"🏗️", x:245,  y:320},
+  expP : {name:"Export\nPort",          icon:"⚓", x:362,  y:320},
+  impP : {name:"Import\nPort",          icon:"⚓", x:850,  y:320},
+  impT : {name:"Container\nTerminal",   icon:"🏗️", x:980,  y:320},
+  asm2 : {name:"Bike\nAssembly Plant",  icon:"🔧", x:1110, y:130, gear:true},
+  juice: {name:"Juice\nFactory",        icon:"🏭", x:980,  y:555, gear:true},
+  dc   : {name:"Distribution\nCentre",  icon:"🏬", x:1110, y:450},
+  cp   : {name:"Customer\nCollection Point", icon:"🏪", x:1245, y:450}
+};
+const SEA_PATH = [[362,320],[440,292],[525,262],[605,300],[690,342],[775,306],[850,320]];
+
+/* ------------------------------------------------------------------
+   2. PRODUCTS AND THEIR JOURNEYS  (times are in supply-chain hours)
+------------------------------------------------------------------ */
+const make    = (node,hrs,lot)            => ({t:"make", node,hrs,lot});
+const proc    = (node,hrs,lot,doing)      => ({t:"process", node,hrs,lot,doing});
+const handle  = (node,hrs,doing)          => ({t:"handle", node,hrs,doing});
+const move    = (from,to,v,hrs,cap,wait)  => ({t:"move", from,to,v,hrs,cap,wait});
+const shipLeg = ()                        => ({t:"ship", from:"expP", to:"impP", hrs:60});
+const deliver = ()                        => ({t:"deliver", from:"dc", to:"cp", v:"🚐", hrs:3, cap:10});
+const crossSea = () => [
+  handle("expT",4,"loading containers"),
+  move("expT","expP","🚛",1,999,0),
+  shipLeg(),
+  handle("impP",3,"unloading the ship"),
+  move("impP","impT","🚛",1,999,0),
+  handle("impT",4,"customs check")
+];
+
+const PRODUCTS = [
+  {id:"phone", name:"Smartphone", icon:"📱", plural:"smartphones",
+   steps:[ make("elec",10,10), move("elec","asm1","🚚",4,20,4), proc("asm1",6,10,"assembling phones"),
+           move("asm1","expT","🚚",6,40,6), ...crossSea(), move("impT","dc","🚚",5,40,4), deliver() ]},
+  {id:"shoe", name:"Sneakers", icon:"👟", plural:"pairs of sneakers",
+   steps:[ make("shoe",8,20), move("shoe","expT","🚚",7,40,6), ...crossSea(),
+           move("impT","dc","🚚",5,40,4), deliver() ]},
+  {id:"bike", name:"Bicycle", icon:"🚲", plural:"bicycles",
+   steps:[ make("bike",8,8), move("bike","expT","🚚",8,24,6), ...crossSea(),
+           move("impT","asm2","🚚",3,20,3), proc("asm2",5,5,"assembling bikes"),
+           move("asm2","dc","🚚",3,10,3), deliver() ]},
+  {id:"juice", name:"Fruit Juice", icon:"🧃", plural:"juice packs",
+   steps:[ make("juice",3,24), move("juice","dc","🚚",3,48,2), deliver() ]}
+];
+
+/* ------------------------------------------------------------------
+   3. SETTINGS
+------------------------------------------------------------------ */
+const HOURS_PER_SECOND = 4;     // at animation speed 10 and 1× demand, 1 real second = 4 supply-chain hours
+let speedLevel = 5;             // set by the 1–10 slider
+const SHIP_EVERY = 24;          // a ship leaves once a day
+const speedFor = waiting => waiting === 0 ? 0 : 1;   // runs while orders are waiting, stops at zero
+
+/* ------------------------------------------------------------------
+   4. STATE
+------------------------------------------------------------------ */
+let S;
+function freshState(){
+  const st = {t:8, shipTimer:0, vehicles:[], prod:{}};
+  PRODUCTS.forEach(p=>{
+    st.prod[p.id] = {
+      open:0, collected:0, orderTimes:[], leadTimes:[],
+      buf: p.steps.map(()=>0),
+      wait: p.steps.map(()=>0),
+      mach: p.steps.map(()=>({busy:false, rem:0, dur:1, qty:0}))
+    };
+  });
+  return st;
+}
+S = freshState();
+
+/* ------------------------------------------------------------------
+   5. HELPERS
+------------------------------------------------------------------ */
+const svgNS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs={}, parent) => {
+  const e = document.createElementNS(svgNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const plainName = id => NODES[id].name.replace("\n"," ");
+const totalOpen = () => PRODUCTS.reduce((a,p)=>a+S.prod[p.id].open,0);
+function clockText(t){
+  const day = Math.floor(t/24)+1, h = Math.floor(t%24);
+  return `Day ${day}, ${String(h).padStart(2,"0")}:00`;
+}
+function niceDuration(h){
+  if (h < 24) return `${Math.max(1,Math.round(h))} h`;
+  return `${(h/24).toFixed(1)} days`;
+}
+function pipeline(pid){
+  const s = S.prod[pid];
+  let n = s.buf.reduce((a,b)=>a+b,0);
+  s.mach.forEach(m=>{ if(m.busy) n+=m.qty; });
+  S.vehicles.forEach(v=>v.cargo.forEach(c=>{ if(c.pid===pid) n+=c.qty; }));
+  return n;
+}
+function onVansToCustomer(pid){
+  let n=0;
+  S.vehicles.forEach(v=>v.cargo.forEach(c=>{ if(c.pid===pid && c.toCustomer) n+=c.qty; }));
+  return n;
+}
+function pathLength(pts){
+  let L=0; for(let i=1;i<pts.length;i++) L+=Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
+  return L;
+}
+function pointAt(pts, frac){
+  const total = pathLength(pts); let d = frac*total;
+  for(let i=1;i<pts.length;i++){
+    const seg = Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
+    if (d <= seg){ const f = seg? d/seg : 0;
+      return [pts[i-1][0]+(pts[i][0]-pts[i-1][0])*f, pts[i-1][1]+(pts[i][1]-pts[i-1][1])*f]; }
+    d -= seg;
+  }
+  return pts[pts.length-1];
+}
+
+/* ------------------------------------------------------------------
+   6. EVENT LOG
+------------------------------------------------------------------ */
+const logEl = document.getElementById("log");
+function log(text){
+  const empty = logEl.querySelector(".empty"); if (empty) empty.remove();
+  const li = document.createElement("li"); li.className="new";
+  li.innerHTML = `<span class="when">${clockText(S.t)}</span><span>${text}</span>`;
+  logEl.prepend(li);
+  while (logEl.children.length > 9) logEl.lastChild.remove();
+}
+
+/* ------------------------------------------------------------------
+   7. DRAW THE MAP
+------------------------------------------------------------------ */
+const map = document.getElementById("map");
+const nodeEls = {};
+const vehLayer = (()=>{
+  // sea & land
+  const defs = el("defs",{},map);
+  const g = el("linearGradient",{id:"seaGrad",x1:"0",y1:"0",x2:"0",y2:"1"},defs);
+  el("stop",{offset:"0%","stop-color":"#4f92e6"},g);
+  el("stop",{offset:"100%","stop-color":"#1e6fd9"},g);
+  el("rect",{x:0,y:0,width:1320,height:640,fill:"#ffffff"},map);
+  el("rect",{x:0,y:0,width:420,height:640,fill:"#f5f9ff"},map);
+  el("rect",{x:790,y:0,width:530,height:640,fill:"#f5f9ff"},map);
+  el("path",{d:"M420 0 Q440 160 412 320 T420 640 L790 640 Q770 480 798 320 T790 0 Z",fill:"url(#seaGrad)"},map);
+  for (let y=70; y<640; y+=95){
+    el("path",{d:`M455 ${y} q18 -10 36 0 t36 0 t36 0`,stroke:"rgba(255,255,255,.45)","stroke-width":2,fill:"none"},map);
+    el("path",{d:`M630 ${y+40} q18 -10 36 0 t36 0 t36 0`,stroke:"rgba(255,255,255,.45)","stroke-width":2,fill:"none"},map);
+  }
+  const t1 = el("text",{x:210,y:28,"text-anchor":"middle",class:"region"},map); t1.textContent="OVERSEAS · WHERE THINGS ARE MADE";
+  const t2 = el("text",{x:1055,y:28,"text-anchor":"middle",class:"region"},map); t2.textContent="HOME COUNTRY · WHERE CUSTOMERS ARE";
+  const t3 = el("text",{x:605,y:215,"text-anchor":"middle",class:"sea-label"},map); t3.textContent="Ocean crossing · about 2½ days";
+
+  // roads
+  const seen = new Set();
+  PRODUCTS.forEach(p=>p.steps.forEach(s=>{
+    if (s.t==="move"||s.t==="deliver"){
+      const key=[s.from,s.to].sort().join("-"); if(seen.has(key)) return; seen.add(key);
+      const a=NODES[s.from], b=NODES[s.to];
+      el("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"#c9ddf7","stroke-width":9,"stroke-linecap":"round"},map);
+      el("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"#ffffff","stroke-width":1.6,"stroke-dasharray":"7 7"},map);
+    }
+  }));
+  // sea lane
+  el("polyline",{points:SEA_PATH.map(p=>p.join(",")).join(" "),fill:"none",stroke:"rgba(255,255,255,.85)","stroke-width":2.5,"stroke-dasharray":"8 8"},map);
+
+  // places
+  for (const id in NODES){
+    const n = NODES[id];
+    const grp = el("g",{},map);
+    const W=118,H=92;
+    el("rect",{x:n.x-W/2,y:n.y-H/2,width:W,height:H,rx:14,fill:"#ffffff",stroke:"#1e6fd9","stroke-width":2},grp);
+    const icon = el("text",{x:n.x,y:n.y-16,"text-anchor":"middle","dominant-baseline":"central","font-size":28,class:"emoji"},grp);
+    icon.textContent = n.icon;
+    const lines = n.name.split("\n");
+    const nm = el("text",{x:n.x,y:n.y+9,"text-anchor":"middle",class:"node-name"},grp);
+    lines.forEach((ln,i)=>{ const ts=el("tspan",{x:n.x,dy:i?13:0},nm); ts.textContent=ln; });
+    // progress bar
+    el("rect",{x:n.x-44,y:n.y+32,width:88,height:6,rx:3,fill:"#eaf3ff"},grp);
+    const prog = el("rect",{x:n.x-44,y:n.y+32,width:0,height:6,rx:3,fill:"#1e6fd9"},grp);
+    let gear=null;
+    if (n.gear){
+      gear = el("text",{x:n.x+42,y:n.y-28,"text-anchor":"middle","dominant-baseline":"central","font-size":17,class:"emoji",opacity:.35},grp);
+      gear.textContent="⚙️";
+    }
+    const badge = el("text",{x:n.x,y:n.y+H/2+19,"text-anchor":"middle",class:"badge emoji"},grp);
+    const sub = el("text",{x:n.x,y:n.y+H/2+36,"text-anchor":"middle","font-size":11.5,fill:"#5a6f91"},grp);
+    // small stock counter in the top-left corner
+    let stockNum=null;
+    if (id!=="cp"){
+      el("circle",{cx:n.x-W/2+4,cy:n.y-H/2+4,r:14,fill:"#0b3d91",stroke:"#ffffff","stroke-width":2},grp);
+      stockNum = el("text",{x:n.x-W/2+4,y:n.y-H/2+5,"text-anchor":"middle","dominant-baseline":"central","font-size":12,"font-weight":700,fill:"#ffffff"},grp);
+      stockNum.textContent="0";
+      const tip = el("title",{},grp); tip.textContent="Number of items here right now";
+    }
+    nodeEls[id] = {prog, gear, badge, sub, stockNum, angle:0, iconEl:icon};
+  }
+  // keep the Export Port captions on land, away from the sea
+  ["badge","sub"].forEach(k=>nodeEls.expP[k].setAttribute("x", NODES.expP.x-30));
+  return el("g",{},map);
+})();
+
+/* ------------------------------------------------------------------
+   8. VEHICLES
+------------------------------------------------------------------ */
+function spawnVehicle(icon, pts, hrs, cargo){
+  const g = el("g",{},vehLayer);
+  const big = icon==="🚢";
+  el("circle",{cx:0,cy:0,r:big?22:16,fill:"#ffffff",stroke:"#0b3d91","stroke-width":2},g);
+  const t = el("text",{x:0,y:1,"text-anchor":"middle","dominant-baseline":"central","font-size":big?26:19,class:"emoji"},g);
+  t.textContent = icon;
+  const lbl = el("text",{x:0,y:big?38:31,"text-anchor":"middle",class:"vlabel emoji"},g);
+  lbl.textContent = cargo.map(c=>`${PRODUCTS.find(p=>p.id===c.pid).icon}${c.qty}`).join(" ");
+  const v = {icon, pts, hrs, prog:0, cargo, g};
+  S.vehicles.push(v);
+  placeVehicle(v);
+  return v;
+}
+function placeVehicle(v){
+  const [x,y] = pointAt(v.pts, Math.min(1,v.prog));
+  v.g.setAttribute("transform",`translate(${x.toFixed(1)},${y.toFixed(1)})`);
+}
+
+/* ------------------------------------------------------------------
+   9. THE SIMULATION STEP
+------------------------------------------------------------------ */
+function finishCollection(p, qty){
+  const s = S.prod[p.id];
+  const n = Math.min(qty, s.open);
+  if (n<=0) return;
+  s.open -= n; s.collected += n;
+  for (let k=0;k<n;k++){ const t0 = s.orderTimes.shift(); s.leadTimes.push(S.t - t0); }
+  if (s.leadTimes.length>30) s.leadTimes.splice(0, s.leadTimes.length-30);
+  log(`🎉 ${n} customer${n>1?"s":""} collected ${n>1?"their":"a"} ${p.icon} ${n>1?p.plural:p.name.toLowerCase()} at the Collection Point`);
+  bumpCard(p.id);
+}
+
+function tick(dtH){
+  S.t += dtH;
+
+  PRODUCTS.forEach(p=>{
+    const s = S.prod[p.id];
+    p.steps.forEach((step,i)=>{
+      const m = s.mach[i];
+      if (step.t==="make"){
+        if (m.busy){ m.rem-=dtH; if(m.rem<=0){ m.busy=false; s.buf[i+1]+=m.qty;
+          log(`✅ ${plainName(step.node)} finished a batch of ${m.qty} ${p.icon}`); } }
+        if (!m.busy && s.open - pipeline(p.id) > 0){
+          Object.assign(m,{busy:true, rem:step.hrs, dur:step.hrs, qty:step.lot});
+          log(`⚙️ ${plainName(step.node)} started making a batch of ${step.lot} ${p.icon} ${p.plural}`);
+        }
+      }
+      else if (step.t==="process" || step.t==="handle"){
+        if (m.busy){ m.rem-=dtH; if(m.rem<=0){ m.busy=false; s.buf[i+1]+=m.qty; } }
+        if (!m.busy && s.buf[i]>0){
+          const q = step.t==="handle" ? s.buf[i] : Math.min(s.buf[i], step.lot);
+          s.buf[i]-=q;
+          Object.assign(m,{busy:true, rem:step.hrs, dur:step.hrs, qty:q});
+        }
+      }
+      else if (step.t==="move"){
+        if (s.buf[i]>0){
+          s.wait[i]+=dtH;
+          if (s.buf[i]>=step.cap || s.wait[i]>=step.wait){
+            const q = Math.min(s.buf[i], step.cap); s.buf[i]-=q; s.wait[i]=0;
+            const a=NODES[step.from], b=NODES[step.to];
+            spawnVehicle(step.v, [[a.x,a.y],[b.x,b.y]], step.hrs, [{pid:p.id, qty:q, step:i+1}]);
+            if (step.v==="🚚") log(`🚚 Truck left ${plainName(step.from)} for ${plainName(step.to)} with ${q} ${p.icon}`);
+          }
+        } else s.wait[i]=0;
+      }
+      else if (step.t==="deliver"){
+        const pending = s.open - onVansToCustomer(p.id);
+        if (s.buf[i]>0 && pending>0){
+          const q = Math.min(s.buf[i], pending, step.cap); s.buf[i]-=q;
+          const a=NODES[step.from], b=NODES[step.to];
+          spawnVehicle(step.v, [[a.x,a.y],[b.x,b.y]], step.hrs, [{pid:p.id, qty:q, toCustomer:true}]);
+          log(`🚐 Van left the Distribution Centre with ${q} ${p.icon} for the Collection Point`);
+        }
+      }
+    });
+  });
+
+  // the daily ship
+  S.shipTimer += dtH;
+  if (S.shipTimer >= SHIP_EVERY){
+    S.shipTimer = 0;
+    const cargo = [];
+    PRODUCTS.forEach(p=>{
+      const i = p.steps.findIndex(s=>s.t==="ship");
+      if (i>=0 && S.prod[p.id].buf[i]>0){ cargo.push({pid:p.id, qty:S.prod[p.id].buf[i], step:i+1}); S.prod[p.id].buf[i]=0; }
+    });
+    if (cargo.length){
+      const total = cargo.reduce((a,c)=>a+c.qty,0);
+      const v = spawnVehicle("🚢", SEA_PATH, 60, cargo);
+      v.isShip = true;
+      log(`🚢 Ship left the Export Port carrying ${total} items across the ocean`);
+    }
+  }
+
+  // move vehicles
+  for (let k=S.vehicles.length-1;k>=0;k--){
+    const v = S.vehicles[k];
+    v.prog += dtH / v.hrs;
+    if (v.prog >= 1){
+      S.vehicles.splice(k,1); v.g.remove();
+      if (v.isShip) log(`🚢 Ship arrived at the Import Port`);
+      v.cargo.forEach(c=>{
+        const p = PRODUCTS.find(x=>x.id===c.pid);
+        if (c.toCustomer) finishCollection(p, c.qty);
+        else S.prod[c.pid].buf[c.step] += c.qty;
+      });
+    } else placeVehicle(v);
+  }
+}
+
+/* ------------------------------------------------------------------
+   10. SCREEN UPDATES
+------------------------------------------------------------------ */
+function stepLocation(step){
+  return (step.t==="make"||step.t==="process"||step.t==="handle") ? step.node : step.from;
+}
+function render(speed, dtReal){
+  // places: stock waiting + busy machines
+  const stock={}, busy={}, total={};
+  for (const id in NODES){ stock[id]={}; busy[id]=null; total[id]=0; }
+  PRODUCTS.forEach(p=>{
+    const s=S.prod[p.id];
+    p.steps.forEach((step,i)=>{
+      const loc = stepLocation(step);
+      if (s.buf[i]>0){ stock[loc][p.icon]=(stock[loc][p.icon]||0)+s.buf[i]; total[loc]+=s.buf[i]; }
+      const m=s.mach[i];
+      if (m.busy){ total[loc]+=m.qty; const f=1-m.rem/m.dur; if(busy[loc]===null||f>busy[loc]) busy[loc]=f; }
+    });
+  });
+  for (const id in NODES){
+    const ne = nodeEls[id];
+    const parts = Object.entries(stock[id]).map(([ic,n])=>`${ic} ${n}`);
+    ne.badge.textContent = parts.join("  ");
+    if (ne.stockNum) ne.stockNum.textContent = total[id];
+    ne.prog.setAttribute("width", busy[id]===null ? 0 : (88*Math.max(0,Math.min(1,busy[id]))).toFixed(1));
+    if (ne.gear){
+      if (busy[id]!==null && speed>0){ ne.angle=(ne.angle+dtReal*200*speed)%360; ne.gear.setAttribute("opacity",1); }
+      else ne.gear.setAttribute("opacity",.3);
+      const n=NODES[id]; ne.gear.setAttribute("transform",`rotate(${ne.angle.toFixed(1)} ${n.x+42} ${n.y-28})`);
+    }
+  }
+  // extra captions
+  const waitingShip = PRODUCTS.reduce((a,p)=>{const i=p.steps.findIndex(s=>s.t==="ship"); return a+(i>=0?S.prod[p.id].buf[i]:0);},0);
+  nodeEls.expP.sub.textContent = waitingShip>0 ? `Next ship in ${Math.ceil(SHIP_EVERY-S.shipTimer)} h` : "Ship leaves daily";
+  nodeEls.dc.sub.textContent = Object.keys(stock.dc).length ? "Ready to send" : "";
+  const open = totalOpen();
+  nodeEls.cp.badge.textContent = open ? `🧍 ${open} waiting` : "";
+  nodeEls.cp.sub.textContent = `Collected so far: ${PRODUCTS.reduce((a,p)=>a+S.prod[p.id].collected,0)}`;
+
+  // status bar
+  const msg = document.getElementById("statusMsg");
+  if (speed===0){ msg.textContent="⏸ Everything is stopped — no orders waiting. Press an order button to start."; msg.classList.add("stopped"); }
+  else { msg.textContent=`▶ The supply chain is working on ${open} order${open>1?"s":""}`; msg.classList.remove("stopped"); }
+  document.getElementById("clock").innerHTML = `${clockText(S.t)}<small>Supply chain clock</small>`;
+
+  // product cards
+  PRODUCTS.forEach(p=>{
+    const s=S.prod[p.id], c=cards[p.id];
+    c.open.textContent=s.open; c.done.textContent=s.collected;
+    c.avg.textContent = s.leadTimes.length ? niceDuration(s.leadTimes.reduce((a,b)=>a+b,0)/s.leadTimes.length) : "—";
+  });
+}
+
+/* ------------------------------------------------------------------
+   11. ORDER CARDS & JOURNEY LIST
+------------------------------------------------------------------ */
+const cards={};
+const shortRoute = {
+  phone:"Factory → Assembly Plant → Ship → Distribution Centre → You",
+  shoe:"Factory → Ship → Distribution Centre → You",
+  bike:"Parts Factory → Ship → Assembly Plant → Distribution Centre → You",
+  juice:"Local Factory → Distribution Centre → You (no ship needed)"
+};
+const ordersEl=document.getElementById("orders");
+PRODUCTS.forEach(p=>{
+  const d=document.createElement("div"); d.className="card";
+  d.innerHTML=`
+    <div class="top"><div class="big emoji">${p.icon}</div>
+      <div><h3>${p.name}</h3><div class="route">${shortRoute[p.id]}</div></div></div>
+    <button>Order 1 ${p.name}</button>
+    <div class="stats">
+      <div class="stat"><b data-k="open">0</b><span>Waiting</span></div>
+      <div class="stat"><b data-k="done">0</b><span>Collected</span></div>
+      <div class="stat"><b data-k="avg">—</b><span>Avg. wait</span></div>
+    </div>`;
+  d.querySelector("button").addEventListener("click",()=>placeOrder(p));
+  ordersEl.appendChild(d);
+  cards[p.id]={box:d, open:d.querySelector('[data-k="open"]'), done:d.querySelector('[data-k="done"]'), avg:d.querySelector('[data-k="avg"]')};
+});
+function bumpCard(pid){ const b=cards[pid].done; b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump"); }
+function placeOrder(p){
+  const s=S.prod[p.id];
+  s.open++; s.orderTimes.push(S.t);
+  const b=cards[p.id].open; b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump");
+  log(`🛒 New order for 1 ${p.icon} ${p.name}`);
+}
+
+// journey descriptions
+const pathsEl=document.getElementById("paths");
+function stepChip(step){
+  switch(step.t){
+    case "make":    return `${NODES[step.node].icon} ${plainName(step.node)} · makes ${step.lot} at a time · ${step.hrs} h`;
+    case "process": return `${NODES[step.node].icon} ${plainName(step.node)} · ${step.lot} at a time · ${step.hrs} h`;
+    case "handle":  return `${NODES[step.node].icon} ${plainName(step.node)} · ${step.doing} · ${step.hrs} h`;
+    case "move":    return step.v==="🚛" ? null : `${step.v} Truck · up to ${step.cap} · ${step.hrs} h`;
+    case "ship":    return `🚢 Ship · daily · ${step.hrs} h`;
+    case "deliver": return `🚐 Van to Collection Point · ${step.hrs} h`;
+  }
+}
+PRODUCTS.forEach(p=>{
+  const chips = p.steps.map(stepChip).filter(Boolean);
+  const div=document.createElement("div"); div.className="path";
+  div.innerHTML=`<h4><span class="emoji">${p.icon}</span> ${p.name}</h4><div class="chips">${
+    chips.map(c=>`<span class="chip emoji">${c}</span>`).join('<span class="arrow">➜</span>')}</div>`;
+  pathsEl.appendChild(div);
+});
+
+/* ------------------------------------------------------------------
+   12. RESET & MAIN LOOP
+------------------------------------------------------------------ */
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  S.vehicles.forEach(v=>v.g.remove());
+  S = freshState();
+  logEl.innerHTML='<li class="empty">Nothing yet — place an order to get things moving.</li>';
+});
+
+const slider=document.getElementById("speedSlider");
+slider.addEventListener("input",()=>{ speedLevel=+slider.value; document.getElementById("speedVal").textContent=speedLevel; });
+
+let last=performance.now();
+function loop(now){
+  const dtReal=Math.min(0.1,(now-last)/1000); last=now;
+  const speed=speedFor(totalOpen());
+  if (speed>0){
+    // small sub-steps keep things smooth at high speed
+    let h = dtReal*HOURS_PER_SECOND*(speedLevel/10)*speed;
+    while (h>0){ const d=Math.min(h,0.5); tick(d); h-=d; }
+  }
+  render(speedFor(totalOpen()), dtReal);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
