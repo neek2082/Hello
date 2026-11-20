@@ -292,33 +292,158 @@ const TAU = Math.PI*2;
 function buildScene(id, n, grp){
   const cx=n.x+6, cy=n.y-24, g=el("g",{},grp), kind=KIND[id];
 
-  if (kind==="factory"){
-    const puffs=[0,1,2].map(()=>el("circle",{r:4,fill:"#a9c3e6",opacity:0},g));
-    emo(g,cx-24,cy+4,"🏭",30);
-    const worker=emo(g,cx+18,cy+8,"👷",22);
-    const ham=emo(g,cx+36,cy-6,"🔨",17);
+  const NAVY="#0b3d91", BLUE="#1e6fd9", MID="#5b9bec", ORANGE="#f28c28", INK="#14284b";
+  const smooth = x => x<0?0:x>1?1:x*x*(3-2*x);
+
+  /* Electronics Factory: a robot arm places chips on a circuit board */
+  if (id==="elec"){
+    const bx=cx-48, by=cy+4;
+    el("rect",{x:bx,y:by,width:64,height:18,rx:2,fill:"#2e9e5b",stroke:"#1d6b3c","stroke-width":1.5},g);
+    [6,12].forEach(dy=>el("line",{x1:bx+3,y1:by+dy,x2:bx+61,y2:by+dy,stroke:"#d9b44a","stroke-width":1},g));
+    const chips=[0,1,2,3].map(i=>el("rect",{x:bx+5+i*15,y:by+3,width:10,height:8,rx:1,fill:INK},g));
+    const baseX=cx+38, baseY=cy+22, elbow=[cx+22,cy-20];
+    el("rect",{x:baseX-9,y:baseY-5,width:18,height:6,rx:2,fill:NAVY},g);
+    const s1=el("line",{x1:baseX,y1:baseY-4,x2:elbow[0],y2:elbow[1],stroke:BLUE,"stroke-width":5,"stroke-linecap":"round"},g);
+    const s2=el("line",{x1:elbow[0],y1:elbow[1],stroke:BLUE,"stroke-width":4,"stroke-linecap":"round"},g);
+    el("circle",{cx:elbow[0],cy:elbow[1],r:3.5,fill:NAVY},g);
+    const grip=el("rect",{width:8,height:5,rx:1,fill:NAVY},g);
+    const spark=emo(g,0,0,"✨",12);
     return (ph,on)=>{
-      puffs.forEach((c,i)=>{ const f=(ph*0.7+i/3)%1;
-        c.setAttribute("cx",(cx-33+f*8).toFixed(1)); c.setAttribute("cy",(cy-10-f*24).toFixed(1));
-        c.setAttribute("r",(3+f*6).toFixed(1)); c.setAttribute("opacity",on?(0.85*(1-f)).toFixed(2):0); });
-      const hit = on ? Math.abs(Math.sin(ph*TAU)) : 0.2;
-      ham.setAttribute("transform",`rotate(${(-55*hit+10).toFixed(1)} ${cx+30} ${cy+4})`);
-      worker.setAttribute("transform",`translate(0 ${on?(-2*hit).toFixed(1):0})`);
+      const t=on?(ph*1.2)%1:0.9, slot=Math.floor(t*4), fr=t*4-slot;
+      chips.forEach((c,i)=>c.setAttribute("opacity", !on ? 1 : (i<slot || (i===slot && fr>0.6)) ? 1 : 0.12));
+      const hx=bx+10+slot*15, dip=on?Math.sin(Math.min(1,fr/0.6)*Math.PI):0;
+      const hy=by-14+12*dip;
+      s2.setAttribute("x2",hx); s2.setAttribute("y2",hy.toFixed(1));
+      grip.setAttribute("x",hx-4); grip.setAttribute("y",(hy-1).toFixed(1));
+      spark.setAttribute("x",hx); spark.setAttribute("y",by+2); spark.setAttribute("opacity", on && fr>0.5 && fr<0.75 ? 1 : 0);
     };
   }
 
-  if (kind==="assembly"){
-    el("rect",{x:cx-44,y:cy+16,width:44,height:5,rx:2,fill:"#0b3d91"},g);          // workbench
-    const item=emo(g,cx-22,cy+4,BENCH_ITEM[id],24);
-    const spark=emo(g,cx-8,cy-10,"✨",13);
-    const mech=emo(g,cx+20,cy+6,"🧑‍🔧",24);
-    const drv=emo(g,cx+2,cy-2,"🪛",16);
+  /* Shoe Factory: a sewing machine stitches a sneaker */
+  if (id==="shoe"){
+    el("rect",{x:cx-50,y:cy+18,width:76,height:4,rx:2,fill:NAVY},g);                    // table
+    el("path",{d:`M${cx+18} ${cy+18} V${cy-16} H${cx-22} V${cy-8}`,fill:"none",stroke:NAVY,"stroke-width":6,"stroke-linejoin":"round"},g); // machine body
+    const needle=el("line",{x1:cx-22,x2:cx-22,stroke:INK,"stroke-width":1.6},g);
+    const shoe=emo(g,cx-22,cy+8,"👟",24);
+    const stitch=el("line",{x1:cx-38,y1:cy+16,y2:cy+16,stroke:ORANGE,"stroke-width":2,"stroke-dasharray":"3 2"},g);
+    const spool=emo(g,cx+18,cy-24,"🧵",15);
+    const maker=emo(g,cx+40,cy+6,"🧑‍🏭",22);
     return (ph,on)=>{
-      const w = on ? Math.sin(ph*TAU*2) : 0;
-      drv.setAttribute("transform",`translate(${(on?-3+3*w:0).toFixed(1)} 0) rotate(${(on?25*w:0).toFixed(1)} ${cx+2} ${cy-2})`);
-      item.setAttribute("transform",`translate(${on?(0.8*Math.sin(ph*TAU*6)).toFixed(1):0} 0)`);
-      spark.setAttribute("opacity", on && Math.sin(ph*TAU*3)>0.3 ? 1 : 0);
-      mech.setAttribute("transform",`translate(0 ${on?(-1.5*Math.abs(w)).toFixed(1):0})`);
+      const up = on ? Math.abs(Math.sin(ph*TAU*4)) : 1;
+      needle.setAttribute("y1",cy-8); needle.setAttribute("y2",(cy-2+8*(1-up)).toFixed(1));
+      const f = on ? (ph*0.8)%1 : 0;
+      shoe.setAttribute("transform",`translate(${(on?6-12*f:0).toFixed(1)} 0)`);
+      stitch.setAttribute("x2",(cx-38+30*f).toFixed(1)); stitch.setAttribute("opacity",on?1:0);
+      spool.setAttribute("transform",`rotate(${on?(ph*720)%360:0} ${cx+18} ${cy-24})`);
+      maker.setAttribute("transform",`translate(0 ${on?(-1.5*up).toFixed(1):0})`);
+    };
+  }
+
+  /* Bike Parts Factory: a drill press machines a metal part, sparks fly */
+  if (id==="bike"){
+    el("rect",{x:cx-46,y:cy+18,width:56,height:4,rx:2,fill:NAVY},g);
+    el("line",{x1:cx-38,y1:cy+18,x2:cx-38,y2:cy-22,stroke:NAVY,"stroke-width":5},g);        // column
+    el("rect",{x:cx-42,y:cy-26,width:36,height:12,rx:3,fill:BLUE},g);                         // drill head
+    const bit=el("line",{x1:cx-16,x2:cx-16,y1:cy-14,stroke:"#8aa0bf","stroke-width":4,"stroke-dasharray":"2 2"},g);
+    el("rect",{x:cx-30,y:cy+8,width:28,height:10,rx:1.5,fill:"#a7b4c8",stroke:"#6b7a91"},g); // metal block
+    const sparks=[[-1,-.6],[1,-.8],[-.6,-1],[.7,-.4],[1.2,-.9],[-1.2,-.3]].map(()=>el("circle",{r:1.8,fill:ORANGE},g));
+    const dirs=[[-1,-.6],[1,-.8],[-.6,-1],[.7,-.4],[1.2,-.9],[-1.2,-.3]];
+    const gear1=emo(g,cx+28,cy-8,"⚙️",22), gear2=emo(g,cx+44,cy+10,"⚙️",15);
+    return (ph,on)=>{
+      const p=on?(ph*0.9)%1:0, down=on?smooth(Math.min(1,p/0.35))*(p<0.8?1:1-(p-0.8)/0.2):0;
+      bit.setAttribute("y2",(cy-6+14*down).toFixed(1));
+      bit.setAttribute("stroke-dashoffset", on?((ph*40)%4).toFixed(1):0);
+      const cut = on && down>0.95;
+      sparks.forEach((s,i)=>{ const k=((ph*3+i/6)%1);
+        s.setAttribute("cx",(cx-16+dirs[i][0]*k*18).toFixed(1)); s.setAttribute("cy",(cy+8+dirs[i][1]*k*16+k*k*10).toFixed(1));
+        s.setAttribute("opacity",cut?(1-k).toFixed(2):0); });
+      const a=on?(ph*360)%360:0;
+      gear1.setAttribute("transform",`rotate(${a} ${cx+28} ${cy-8})`);
+      gear2.setAttribute("transform",`rotate(${-a*1.5} ${cx+44} ${cy+10})`);
+    };
+  }
+
+  /* Juice Factory: a press squeezes oranges, juice fills the glass */
+  if (id==="juice"){
+    el("rect",{x:cx-50,y:cy+18,width:100,height:4,rx:2,fill:NAVY},g);
+    el("line",{x1:cx-46,y1:cy+18,x2:cx-46,y2:cy-24,stroke:NAVY,"stroke-width":4},g);
+    el("line",{x1:cx-6,y1:cy+18,x2:cx-6,y2:cy-24,stroke:NAVY,"stroke-width":4},g);
+    el("line",{x1:cx-48,y1:cy-24,x2:cx-4,y2:cy-24,stroke:NAVY,"stroke-width":4},g);
+    const rod=el("line",{x1:cx-26,x2:cx-26,y1:cy-24,stroke:INK,"stroke-width":3},g);
+    const plate=el("rect",{x:cx-40,width:28,height:5,rx:1.5,fill:BLUE},g);
+    const orange=emo(g,cx-26,cy+8,"🍊",20);
+    el("path",{d:`M${cx-6} ${cy+12} h10`,stroke:NAVY,"stroke-width":3},g);               // spout
+    const drops=[0,1,2].map(()=>el("circle",{r:2,fill:ORANGE},g));
+    el("rect",{x:cx+8,y:cy,width:16,height:18,rx:2,fill:"#fff",stroke:NAVY,"stroke-width":1.5},g); // glass
+    const fill=el("rect",{x:cx+9.5,width:13,rx:1,fill:ORANGE},g);
+    const pack=emo(g,cx+40,cy+6,"🧃",20);
+    return (ph,on)=>{
+      const p=on?ph%1:0, press=on?Math.max(0,Math.sin(p*TAU)):0;
+      const py=cy-14+10*press;
+      rod.setAttribute("y2",py); plate.setAttribute("y",py);
+      orange.setAttribute("transform",`translate(${cx-26} ${cy+17}) scale(${(1+0.25*press).toFixed(2)} ${(1-0.4*press).toFixed(2)}) translate(${-(cx-26)} ${-(cy+17)})`);
+      drops.forEach((d,i)=>{ const k=((ph*2.5+i/3)%1);
+        d.setAttribute("cx",cx+12); d.setAttribute("cy",(cy+12+k*6).toFixed(1));
+        d.setAttribute("opacity", on&&press>0.3?(1-k).toFixed(2):0); });
+      const lvl = on ? 3+13*p : 6;
+      fill.setAttribute("y",(cy+17-lvl).toFixed(1)); fill.setAttribute("height",lvl.toFixed(1));
+      pack.setAttribute("transform",`translate(0 ${on?(-2*Math.abs(Math.sin(ph*TAU*2))).toFixed(1):0})`);
+    };
+  }
+
+  /* Phone Assembly Plant: phones ride an assembly line, a worker screws each one */
+  if (id==="asm1"){
+    el("rect",{x:cx-50,y:cy+14,width:100,height:5,rx:2.5,fill:NAVY},g);
+    const rollers=[0,1,2,3,4,5].map(i=>el("circle",{cx:cx-44+i*18,cy:cy+21,r:2.4,fill:MID},g));
+    const phones=[0,1,2,3].map(()=>emo(g,0,cy+4,"📱",16));
+    const worker=emo(g,cx-2,cy-16,"👩‍🔧",22);
+    const drv=emo(g,cx-14,cy-6,"🪛",14);
+    return (ph,on)=>{
+      const t=on?ph*1.1:0, k=Math.floor(t), fr=t-k, m=smooth(Math.min(1,fr/0.4));
+      phones.forEach((p,j)=>{ const pos=((j+k+m)%4); const x=cx-44+pos*24;
+        p.setAttribute("x",x.toFixed(1)); p.setAttribute("opacity",(pos<0.3?pos/0.3:pos>3.3?(4-pos)/0.7:1).toFixed(2)); });
+      const work = on && fr>0.4;
+      drv.setAttribute("transform",`translate(0 ${work?(3*Math.abs(Math.sin(fr*TAU*3))).toFixed(1):0}) rotate(${work?(20*Math.sin(fr*TAU*3)).toFixed(1):0} ${cx-14} ${cy-6})`);
+      rollers.forEach((r,i)=>r.setAttribute("opacity", on&&fr<0.4&&(Math.floor(ph*12)+i)%2?.4:1));
+      worker.setAttribute("transform",`translate(0 ${work?-1.5:0})`);
+    };
+  }
+
+  /* Bike Assembly Plant: a mechanic fits a wheel and tightens it */
+  if (id==="asm2"){
+    el("rect",{x:cx-50,y:cy+18,width:74,height:4,rx:2,fill:NAVY},g);
+    emo(g,cx-22,cy+4,"🚲",34);
+    const wheel=emo(g,0,cy+4,"🛞",17);
+    const wrench=emo(g,cx-6,cy-14,"🔧",16);
+    const mech=emo(g,cx+38,cy+4,"🧑‍🔧",24);
+    return (ph,on)=>{
+      const p=on?(ph*0.8)%1:0.9, slide=smooth(Math.min(1,p/0.45));
+      wheel.setAttribute("x",(cx+24-34*slide).toFixed(1));
+      wheel.setAttribute("opacity", on ? (p>0.9?(1-p)*10:1).toFixed(2) : 0);
+      wheel.setAttribute("transform",`rotate(${on?(-slide*360).toFixed(1):0} ${(cx+24-34*slide).toFixed(1)} ${cy+4})`);
+      const turn = on && p>0.45;
+      wrench.setAttribute("transform",`rotate(${turn?(40*Math.sin(p*TAU*4)).toFixed(1):0} ${cx-6} ${cy-6})`);
+      wrench.setAttribute("opacity", turn?1:.35);
+      mech.setAttribute("transform",`translate(0 ${turn?(-1.5*Math.abs(Math.sin(p*TAU*4))).toFixed(1):0})`);
+    };
+  }
+
+  /* Import Container Terminal: customs officer scans a container and approves it */
+  if (id==="impT"){
+    const box=el("rect",{x:cx-48,y:cy-4,width:50,height:22,rx:2,fill:ORANGE,stroke:"#fff","stroke-width":1.5},g);
+    [0,1,2,3,4].map(i=>el("line",{x1:cx-42+i*10,y1:cy-1,x2:cx-42+i*10,y2:cy+15,stroke:"#c96f17","stroke-width":1.5},g));
+    const beam=el("rect",{y:cy-8,width:4,height:30,rx:1,fill:"#5bd1ff",opacity:0},g);
+    const glass=emo(g,0,cy-14,"🔍",16);
+    const ok=emo(g,cx-23,cy+7,"✅",18);
+    const officer=emo(g,cx+22,cy+4,"👮",24);
+    const board=emo(g,cx+42,cy+8,"📋",15);
+    return (ph,on)=>{
+      const p=on?(ph*0.7)%1:0, scan=Math.min(1,p/0.7), x=cx-46+46*smooth(scan);
+      beam.setAttribute("x",(x-2).toFixed(1)); beam.setAttribute("opacity", on&&p<0.7?.7:0);
+      glass.setAttribute("x",x.toFixed(1)); glass.setAttribute("opacity", on&&p<0.7?1:0);
+      ok.setAttribute("opacity", on&&p>=0.72?1:0);
+      board.setAttribute("transform",`rotate(${on&&p>=0.72?-15:0} ${cx+42} ${cy+14})`);
+      officer.setAttribute("transform",`translate(0 ${on&&p>=0.72?-2:0})`);
     };
   }
 
