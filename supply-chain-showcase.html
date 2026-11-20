@@ -7,137 +7,154 @@
 <style>
   :root{
     --navy:#0b3d91; --blue:#1e6fd9; --mid:#5b9bec; --light:#eaf3ff; --pale:#f5f9ff;
-    --line:#c9ddf7; --text:#14284b; --muted:#5a6f91; --white:#ffffff; --good:#1e6fd9;
+    --line:#c9ddf7; --text:#14284b; --muted:#5a6f91;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;background:var(--pale);color:var(--text)}
+  html,body{margin:0;height:100%}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;background:var(--pale);color:var(--text);
+       display:flex;flex-direction:column;height:100vh;overflow:hidden}
   .emoji{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
-  header{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;padding:22px 24px 18px}
-  header h1{margin:0 0 6px;font-size:26px;letter-spacing:.2px}
-  header p{margin:0;opacity:.92;max-width:900px;line-height:1.45}
-  main{max-width:1320px;margin:0 auto;padding:18px 16px 40px}
 
-  /* order cards */
-  .orders{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
-  .card{background:#fff;border:2px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 8px rgba(11,61,145,.06)}
-  .card .top{display:flex;align-items:center;gap:12px}
-  .card .big{font-size:40px;line-height:1}
-  .card h3{margin:0;font-size:18px;color:var(--navy)}
-  .card .route{font-size:12.5px;color:var(--muted);line-height:1.35}
-  .card button{background:var(--blue);color:#fff;border:none;border-radius:12px;padding:12px 10px;font-size:16px;font-weight:600;cursor:pointer;transition:transform .08s,background .15s}
+  /* ---------- top bar ---------- */
+  .topbar{flex:0 0 auto;background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;padding:8px 14px;
+          display:flex;align-items:center;gap:16px}
+  .topbar h1{margin:0;font-size:20px;white-space:nowrap}
+  .status{background:#fff;color:var(--navy);border-radius:999px;padding:5px 12px;font-size:14px;font-weight:700;white-space:nowrap}
+  .status.stopped{color:var(--muted)}
+  .ticker{flex:1 1 auto;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}
+  .speedctl{font-size:12.5px;width:190px;flex:0 0 auto}
+  .speedctl label{display:block;margin-bottom:2px;white-space:nowrap}
+  .speedctl input{width:100%;accent-color:#ffffff;cursor:pointer}
+  .clock{font-size:14px;font-weight:700;white-space:nowrap;line-height:1.15}
+  .clock small{display:block;font-weight:400;font-size:11px;opacity:.85}
+  .tbtn{background:#fff;color:var(--navy);border:none;border-radius:9px;padding:7px 12px;font-weight:700;cursor:pointer;font-size:13.5px;white-space:nowrap}
+  .tbtn.ghost{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.8)}
+  .tbtn:hover{background:var(--light);color:var(--navy)}
+
+  /* ---------- the map: the star of the show ---------- */
+  .mapwrap{flex:1 1 auto;min-height:0;position:relative;margin:8px 10px 0;background:#f5f9ff;border:2px solid var(--line);border-radius:14px;overflow:hidden}
+  #map{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .node-name{font-size:15px;font-weight:700;fill:var(--navy)}
+  .badge{font-size:16px;font-weight:700;fill:var(--text)}
+  .region{font-size:16px;font-weight:700;letter-spacing:1.2px;fill:var(--navy);opacity:.75}
+  .sea-label{font-size:17px;fill:#ffffff;font-weight:600}
+  .vlabel{font-size:13px;font-weight:700;fill:var(--navy)}
+
+  /* ---------- order buttons along the bottom ---------- */
+  .orders{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:8px 10px 10px}
+  .card{background:#fff;border:2px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;align-items:center;gap:10px;min-width:0}
+  .card .big{font-size:34px;line-height:1}
+  .card .info{flex:1 1 auto;min-width:0}
+  .card h3{margin:0 0 3px;font-size:16px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .nums{font-size:12.5px;color:var(--muted);line-height:1.35}
+  .card .nums span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .nums b{color:var(--navy);font-size:14.5px;display:inline-block}
+  .card button{flex:0 0 auto;background:var(--blue);color:#fff;border:none;border-radius:10px;padding:11px 14px;font-size:16px;font-weight:700;cursor:pointer;transition:transform .08s,background .15s;white-space:nowrap}
   .card button:hover{background:var(--navy)}
-  .card button:active{transform:scale(.96)}
-  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
-  .stat{background:var(--light);border-radius:10px;padding:6px 4px}
-  .stat b{display:block;font-size:20px;color:var(--navy)}
-  .stat span{font-size:11.5px;color:var(--muted)}
+  .card button:active{transform:scale(.93)}
   .bump{animation:bump .35s ease}
-  @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+  @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
 
-  /* status bar */
-  .status{margin:16px 0 12px;background:#fff;border:2px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:14px 26px}
-  .status .msg{font-size:17px;font-weight:600;color:var(--navy);flex:1 1 320px}
-  .status .msg.stopped{color:var(--muted)}
-  .speedctl{flex:0 1 230px;font-size:13px;color:var(--navy)}
-  .speedctl label{display:block;margin-bottom:4px}
-  .speedctl label span{color:var(--muted);font-size:12px}
-  .speedctl input{width:100%;accent-color:var(--blue);cursor:pointer}
-  .clock{font-size:15px;color:var(--navy);font-weight:600;white-space:nowrap}
-  .clock small{display:block;font-weight:400;color:var(--muted);font-size:12px}
-  .resetbtn{background:#fff;color:var(--blue);border:2px solid var(--blue);border-radius:10px;padding:8px 14px;font-weight:600;cursor:pointer}
-  .resetbtn:hover{background:var(--light)}
-
-  /* map */
-  .mapwrap{background:#fff;border:2px solid var(--line);border-radius:16px;overflow:hidden}
-  svg{display:block;width:100%;height:auto}
-  .node-name{font-size:12px;font-weight:600;fill:var(--navy)}
-  .badge{font-size:13px;font-weight:600;fill:var(--text)}
-  .region{font-size:13px;font-weight:700;letter-spacing:1.2px;fill:var(--navy);opacity:.75}
-  .sea-label{font-size:13px;fill:#ffffff;font-weight:600}
-  .vlabel{font-size:10.5px;font-weight:700;fill:var(--navy)}
-
-  /* bottom panels */
-  .lower{display:grid;grid-template-columns:1fr 1.25fr;gap:14px;margin-top:14px}
-  @media (max-width:900px){.lower{grid-template-columns:1fr}}
-  .panel{background:#fff;border:2px solid var(--line);border-radius:16px;padding:14px 16px}
-  .panel h2{margin:0 0 10px;font-size:18px;color:var(--navy)}
-  #log{list-style:none;margin:0;padding:0;font-size:14px}
-  #log li{padding:7px 4px;border-bottom:1px solid var(--light);display:flex;gap:10px}
-  #log li .when{color:var(--muted);font-size:12px;white-space:nowrap;min-width:78px;padding-top:1px}
-  #log li.new{animation:fadein .5s ease}
-  @keyframes fadein{from{background:var(--light)}to{background:transparent}}
-  .path{margin:0 0 14px}
+  /* ---------- "How it works" pop-up ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(11,61,145,.35);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+  .overlay.open{display:flex}
+  .sheet{background:#fff;border-radius:16px;max-width:1000px;width:100%;max-height:100%;overflow:auto;padding:18px 22px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .sheet h2{margin:14px 0 8px;font-size:18px;color:var(--navy)}
+  .sheet-head h2{margin:0}
+  .closebtn{background:var(--blue);color:#fff;border:none;border-radius:9px;padding:8px 14px;font-weight:700;cursor:pointer}
+  .cols{display:grid;grid-template-columns:1.3fr 1fr;gap:22px}
+  .path{margin:0 0 12px}
   .path h4{margin:0 0 6px;font-size:15px;color:var(--navy)}
   .chips{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
-  .chip{background:var(--light);border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:12px;white-space:nowrap}
+  .chip{background:var(--light);border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:12.5px;white-space:nowrap}
   .arrow{color:var(--mid);font-size:12px}
-  .facts{margin:6px 0 0;padding-left:18px;font-size:14px;line-height:1.55}
-  .empty{color:var(--muted);font-size:14px}
+  .facts{margin:0;padding-left:18px;font-size:14px;line-height:1.55}
+  #log{list-style:none;margin:0;padding:0;font-size:13px}
+  #log li{padding:5px 2px;border-bottom:1px solid var(--light);display:flex;gap:8px;line-height:1.3}
+  #log li .when{color:var(--muted);font-size:11.5px;white-space:nowrap;min-width:74px;padding-top:1px}
+  .empty{color:var(--muted)}
+
+  /* ---------- narrow / portrait screens: let it scroll ---------- */
+  @media (max-width:1000px), (orientation:portrait){
+    body{height:auto;overflow:auto}
+    .topbar{flex-wrap:wrap}
+    .ticker{flex-basis:100%;order:5}
+    .mapwrap{flex:none;aspect-ratio:1280/660;overflow-x:auto}
+    .orders{grid-template-columns:1fr 1fr}
+    .cols{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    .mapwrap{aspect-ratio:auto;height:430px}
+    #map{width:830px}
+    .orders{grid-template-columns:1fr}
+  }
 </style>
 </head>
 <body>
-<header>
+<div class="topbar">
   <h1><span class="emoji">🌏</span> How a Supply Chain Works</h1>
-  <p>Pick a product and press its button to place an order — each press is one order. Watch factories, ships, trucks and warehouses spring into action to get it to the customer collection point. When every order has been collected, everything stops.</p>
-</header>
-
-<main>
-  <section class="orders" id="orders"></section>
-
-  <section class="status">
-    <div class="msg stopped" id="statusMsg">⏸ Everything is stopped — no orders waiting. Press an order button to start.</div>
-    <div class="speedctl">
-      <label for="speedSlider">Animation speed: <b id="speedVal">5</b> <span>(1 = slow, 10 = fast)</span></label>
-      <input type="range" id="speedSlider" min="1" max="10" step="1" value="5">
-    </div>
-    <div class="clock" id="clock">Day 1, 08:00<small>Supply chain clock</small></div>
-    <button class="resetbtn" id="resetBtn">Start over</button>
-  </section>
-
-  <div class="mapwrap">
-    <svg id="map" viewBox="0 0 1320 640" role="img" aria-label="Map of the supply chain"></svg>
+  <div class="status stopped" id="statusMsg">⏸ Stopped</div>
+  <div class="ticker emoji" id="ticker">Press an <b>Order</b> button below — one press is one order.</div>
+  <div class="speedctl">
+    <label for="speedSlider">Speed: <b id="speedVal">5</b> (1 slow – 10 fast)</label>
+    <input type="range" id="speedSlider" min="1" max="10" step="1" value="5">
   </div>
+  <div class="clock" id="clock">Day 1, 08:00<small>Supply chain clock</small></div>
+  <button class="tbtn ghost" id="infoBtn">How it works</button>
+  <button class="tbtn" id="resetBtn">Start over</button>
+</div>
 
-  <section class="lower">
-    <div class="panel">
-      <h2>What's happening now</h2>
-      <ul id="log"><li class="empty">Nothing yet — place an order to get things moving.</li></ul>
+<div class="mapwrap">
+  <svg id="map" viewBox="0 0 1280 660" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Map of the supply chain"></svg>
+</div>
+
+<section class="orders" id="orders"></section>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <div class="sheet-head"><h2>How it works</h2><button class="closebtn" id="closeBtn">Close</button></div>
+    <div class="cols">
+      <div>
+        <h2>How each product travels</h2>
+        <div id="paths"></div>
+        <h2>Good to know</h2>
+        <ul class="facts">
+          <li><b>Batches:</b> factories make items in batches. If you order 1 juice, the factory still makes 24 — the extras wait at the Distribution Centre, so the next juice orders are collected much faster.</li>
+          <li><b>Trucks</b> wait until they are full, or until they have waited a few hours, before leaving.</li>
+          <li><b>Ships</b> leave the Export Port once a day and carry every product together. The sea trip takes about 2½ days.</li>
+          <li><b>Speed:</b> use the speed slider (1 = slow, 10 = fast). With no orders waiting, everything stops.</li>
+          <li><b>Blue number on each place:</b> how many items are there right now — waiting, or being made or handled.</li>
+          <li>Only the factory reacts to orders. Everything after it simply passes items along as soon as it can.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Everything that has happened</h2>
+        <ul id="log"><li class="empty">Nothing yet — place an order to get things moving.</li></ul>
+      </div>
     </div>
-    <div class="panel">
-      <h2>How each product travels</h2>
-      <div id="paths"></div>
-      <h2 style="margin-top:6px">Good to know</h2>
-      <ul class="facts">
-        <li><b>Batches:</b> factories make items in batches. If you order 1 juice, the factory still makes 24 — the extras wait at the Distribution Centre, so the next juice orders are collected much faster.</li>
-        <li><b>Trucks</b> wait until they are full, or until they have waited a few hours, before leaving.</li>
-        <li><b>Ships</b> leave the Export Port once a day and carry every product together. The sea trip takes about 2½ days.</li>
-        <li><b>Speed:</b> use the speed slider (1 = slow, 10 = fast) to set how fast everything moves. With no orders waiting, everything stops.</li>
-        <li><b>Blue number on each place:</b> how many items are there right now — waiting, or being made or handled.</li>
-        <li>Only the factory reacts to orders. Everything after it simply passes items along as soon as it can.</li>
-      </ul>
-    </div>
-  </section>
-</main>
+  </div>
+</div>
 
 <script>
 /* ------------------------------------------------------------------
    1. PLACES ON THE MAP
 ------------------------------------------------------------------ */
 const NODES = {
-  elec : {name:"Electronics\nFactory",  icon:"🏭", x:90,   y:110, gear:true},
-  shoe : {name:"Shoe\nFactory",         icon:"🏭", x:90,   y:320, gear:true},
-  bike : {name:"Bike Parts\nFactory",   icon:"🏭", x:90,   y:530, gear:true},
-  asm1 : {name:"Phone\nAssembly Plant", icon:"🔧", x:245,  y:110, gear:true},
-  expT : {name:"Container\nTerminal",   icon:"🏗️", x:245,  y:320},
-  expP : {name:"Export\nPort",          icon:"⚓", x:362,  y:320},
-  impP : {name:"Import\nPort",          icon:"⚓", x:850,  y:320},
-  impT : {name:"Container\nTerminal",   icon:"🏗️", x:980,  y:320},
-  asm2 : {name:"Bike\nAssembly Plant",  icon:"🔧", x:1110, y:130, gear:true},
-  juice: {name:"Juice\nFactory",        icon:"🏭", x:980,  y:555, gear:true},
-  dc   : {name:"Distribution\nCentre",  icon:"🏬", x:1110, y:450},
-  cp   : {name:"Customer\nCollection Point", icon:"🏪", x:1245, y:450}
+  elec : {name:"Electronics\nFactory",  icon:"🏭", x:95,   y:120, gear:true},
+  shoe : {name:"Shoe\nFactory",         icon:"🏭", x:95,   y:330, gear:true},
+  bike : {name:"Bike Parts\nFactory",   icon:"🏭", x:95,   y:540, gear:true},
+  asm1 : {name:"Phone\nAssembly Plant", icon:"🔧", x:265,  y:120, gear:true},
+  expT : {name:"Container\nTerminal",   icon:"🏗️", x:265,  y:330},
+  expP : {name:"Export\nPort",          icon:"⚓", x:405,  y:330},
+  impP : {name:"Import\nPort",          icon:"⚓", x:770,  y:330},
+  impT : {name:"Container\nTerminal",   icon:"🏗️", x:910,  y:330},
+  asm2 : {name:"Bike\nAssembly Plant",  icon:"🔧", x:1060, y:130, gear:true},
+  juice: {name:"Juice\nFactory",        icon:"🏭", x:910,  y:555, gear:true},
+  dc   : {name:"Distribution\nCentre",  icon:"🏬", x:1060, y:450},
+  cp   : {name:"Customer\nCollection Point", icon:"🏪", x:1205, y:450}
 };
-const SEA_PATH = [[362,320],[440,292],[525,262],[605,300],[690,342],[775,306],[850,320]];
+const SEA_PATH = [[405,330],[485,305],[545,275],[600,330],[655,380],[715,340],[770,330]];
 
 /* ------------------------------------------------------------------
    2. PRODUCTS AND THEIR JOURNEYS  (times are in supply-chain hours)
@@ -249,12 +266,14 @@ function pointAt(pts, frac){
    6. EVENT LOG
 ------------------------------------------------------------------ */
 const logEl = document.getElementById("log");
+const tickerEl = document.getElementById("ticker");
 function log(text){
   const empty = logEl.querySelector(".empty"); if (empty) empty.remove();
   const li = document.createElement("li"); li.className="new";
   li.innerHTML = `<span class="when">${clockText(S.t)}</span><span>${text}</span>`;
   logEl.prepend(li);
-  while (logEl.children.length > 9) logEl.lastChild.remove();
+  while (logEl.children.length > 60) logEl.lastChild.remove();
+  tickerEl.innerHTML = `<b>${clockText(S.t)}</b> · ${text}`;
 }
 
 /* ------------------------------------------------------------------
@@ -268,17 +287,15 @@ const vehLayer = (()=>{
   const g = el("linearGradient",{id:"seaGrad",x1:"0",y1:"0",x2:"0",y2:"1"},defs);
   el("stop",{offset:"0%","stop-color":"#4f92e6"},g);
   el("stop",{offset:"100%","stop-color":"#1e6fd9"},g);
-  el("rect",{x:0,y:0,width:1320,height:640,fill:"#ffffff"},map);
-  el("rect",{x:0,y:0,width:420,height:640,fill:"#f5f9ff"},map);
-  el("rect",{x:790,y:0,width:530,height:640,fill:"#f5f9ff"},map);
-  el("path",{d:"M420 0 Q440 160 412 320 T420 640 L790 640 Q770 480 798 320 T790 0 Z",fill:"url(#seaGrad)"},map);
+  el("rect",{x:0,y:0,width:1280,height:660,fill:"#f5f9ff"},map);
+  el("path",{d:"M482 0 Q500 165 474 330 T482 660 L698 660 Q680 495 706 330 T698 0 Z",fill:"url(#seaGrad)"},map);
   for (let y=70; y<640; y+=95){
-    el("path",{d:`M455 ${y} q18 -10 36 0 t36 0 t36 0`,stroke:"rgba(255,255,255,.45)","stroke-width":2,fill:"none"},map);
-    el("path",{d:`M630 ${y+40} q18 -10 36 0 t36 0 t36 0`,stroke:"rgba(255,255,255,.45)","stroke-width":2,fill:"none"},map);
+    el("path",{d:`M500 ${y} q16 -10 32 0 t32 0 t32 0`,stroke:"rgba(255,255,255,.45)","stroke-width":2,fill:"none"},map);
+    el("path",{d:`M585 ${y+45} q16 -10 32 0 t32 0 t32 0`,stroke:"rgba(255,255,255,.45)","stroke-width":2,fill:"none"},map);
   }
-  const t1 = el("text",{x:210,y:28,"text-anchor":"middle",class:"region"},map); t1.textContent="OVERSEAS · WHERE THINGS ARE MADE";
-  const t2 = el("text",{x:1055,y:28,"text-anchor":"middle",class:"region"},map); t2.textContent="HOME COUNTRY · WHERE CUSTOMERS ARE";
-  const t3 = el("text",{x:605,y:215,"text-anchor":"middle",class:"sea-label"},map); t3.textContent="Ocean crossing · about 2½ days";
+  const t1 = el("text",{x:240,y:32,"text-anchor":"middle",class:"region"},map); t1.textContent="OVERSEAS · WHERE THINGS ARE MADE";
+  const t2 = el("text",{x:990,y:32,"text-anchor":"middle",class:"region"},map); t2.textContent="HOME COUNTRY · WHERE CUSTOMERS ARE";
+  const t3 = el("text",{x:590,y:200,"text-anchor":"middle",class:"sea-label"},map); t3.textContent="Ocean · 2½ days";
 
   // roads
   const seen = new Set();
@@ -297,28 +314,28 @@ const vehLayer = (()=>{
   for (const id in NODES){
     const n = NODES[id];
     const grp = el("g",{},map);
-    const W=118,H=92;
+    const W=132,H=104;
     el("rect",{x:n.x-W/2,y:n.y-H/2,width:W,height:H,rx:14,fill:"#ffffff",stroke:"#1e6fd9","stroke-width":2},grp);
-    const icon = el("text",{x:n.x,y:n.y-16,"text-anchor":"middle","dominant-baseline":"central","font-size":28,class:"emoji"},grp);
+    const icon = el("text",{x:n.x,y:n.y-20,"text-anchor":"middle","dominant-baseline":"central","font-size":34,class:"emoji"},grp);
     icon.textContent = n.icon;
     const lines = n.name.split("\n");
-    const nm = el("text",{x:n.x,y:n.y+9,"text-anchor":"middle",class:"node-name"},grp);
-    lines.forEach((ln,i)=>{ const ts=el("tspan",{x:n.x,dy:i?13:0},nm); ts.textContent=ln; });
+    const nm = el("text",{x:n.x,y:n.y+13,"text-anchor":"middle",class:"node-name"},grp);
+    lines.forEach((ln,i)=>{ const ts=el("tspan",{x:n.x,dy:i?17:0},nm); ts.textContent=ln; });
     // progress bar
-    el("rect",{x:n.x-44,y:n.y+32,width:88,height:6,rx:3,fill:"#eaf3ff"},grp);
-    const prog = el("rect",{x:n.x-44,y:n.y+32,width:0,height:6,rx:3,fill:"#1e6fd9"},grp);
+    el("rect",{x:n.x-50,y:n.y+38,width:100,height:7,rx:3.5,fill:"#eaf3ff"},grp);
+    const prog = el("rect",{x:n.x-50,y:n.y+38,width:0,height:7,rx:3.5,fill:"#1e6fd9"},grp);
     let gear=null;
     if (n.gear){
-      gear = el("text",{x:n.x+42,y:n.y-28,"text-anchor":"middle","dominant-baseline":"central","font-size":17,class:"emoji",opacity:.35},grp);
+      gear = el("text",{x:n.x+50,y:n.y-34,"text-anchor":"middle","dominant-baseline":"central","font-size":19,class:"emoji",opacity:.35},grp);
       gear.textContent="⚙️";
     }
-    const badge = el("text",{x:n.x,y:n.y+H/2+19,"text-anchor":"middle",class:"badge emoji"},grp);
-    const sub = el("text",{x:n.x,y:n.y+H/2+36,"text-anchor":"middle","font-size":11.5,fill:"#5a6f91"},grp);
+    const badge = el("text",{x:n.x,y:n.y+H/2+22,"text-anchor":"middle",class:"badge emoji"},grp);
+    const sub = el("text",{x:n.x,y:n.y+H/2+40,"text-anchor":"middle","font-size":13,fill:"#5a6f91"},grp);
     // small stock counter in the top-left corner
     let stockNum=null;
     if (id!=="cp"){
-      el("circle",{cx:n.x-W/2+4,cy:n.y-H/2+4,r:14,fill:"#0b3d91",stroke:"#ffffff","stroke-width":2},grp);
-      stockNum = el("text",{x:n.x-W/2+4,y:n.y-H/2+5,"text-anchor":"middle","dominant-baseline":"central","font-size":12,"font-weight":700,fill:"#ffffff"},grp);
+      el("circle",{cx:n.x-W/2+4,cy:n.y-H/2+4,r:17,fill:"#0b3d91",stroke:"#ffffff","stroke-width":2},grp);
+      stockNum = el("text",{x:n.x-W/2+4,y:n.y-H/2+5,"text-anchor":"middle","dominant-baseline":"central","font-size":14,"font-weight":700,fill:"#ffffff"},grp);
       stockNum.textContent="0";
       const tip = el("title",{},grp); tip.textContent="Number of items here right now";
     }
@@ -335,10 +352,10 @@ const vehLayer = (()=>{
 function spawnVehicle(icon, pts, hrs, cargo){
   const g = el("g",{},vehLayer);
   const big = icon==="🚢";
-  el("circle",{cx:0,cy:0,r:big?22:16,fill:"#ffffff",stroke:"#0b3d91","stroke-width":2},g);
-  const t = el("text",{x:0,y:1,"text-anchor":"middle","dominant-baseline":"central","font-size":big?26:19,class:"emoji"},g);
+  el("circle",{cx:0,cy:0,r:big?26:19,fill:"#ffffff",stroke:"#0b3d91","stroke-width":2},g);
+  const t = el("text",{x:0,y:1,"text-anchor":"middle","dominant-baseline":"central","font-size":big?31:23,class:"emoji"},g);
   t.textContent = icon;
-  const lbl = el("text",{x:0,y:big?38:31,"text-anchor":"middle",class:"vlabel emoji"},g);
+  const lbl = el("text",{x:0,y:big?44:35,"text-anchor":"middle",class:"vlabel emoji"},g);
   lbl.textContent = cargo.map(c=>`${PRODUCTS.find(p=>p.id===c.pid).icon}${c.qty}`).join(" ");
   const v = {icon, pts, hrs, prog:0, cargo, g};
   S.vehicles.push(v);
@@ -467,11 +484,11 @@ function render(speed, dtReal){
     const parts = Object.entries(stock[id]).map(([ic,n])=>`${ic} ${n}`);
     ne.badge.textContent = parts.join("  ");
     if (ne.stockNum) ne.stockNum.textContent = total[id];
-    ne.prog.setAttribute("width", busy[id]===null ? 0 : (88*Math.max(0,Math.min(1,busy[id]))).toFixed(1));
+    ne.prog.setAttribute("width", busy[id]===null ? 0 : (100*Math.max(0,Math.min(1,busy[id]))).toFixed(1));
     if (ne.gear){
       if (busy[id]!==null && speed>0){ ne.angle=(ne.angle+dtReal*200*speed)%360; ne.gear.setAttribute("opacity",1); }
       else ne.gear.setAttribute("opacity",.3);
-      const n=NODES[id]; ne.gear.setAttribute("transform",`rotate(${ne.angle.toFixed(1)} ${n.x+42} ${n.y-28})`);
+      const n=NODES[id]; ne.gear.setAttribute("transform",`rotate(${ne.angle.toFixed(1)} ${n.x+50} ${n.y-34})`);
     }
   }
   // extra captions
@@ -484,8 +501,8 @@ function render(speed, dtReal){
 
   // status bar
   const msg = document.getElementById("statusMsg");
-  if (speed===0){ msg.textContent="⏸ Everything is stopped — no orders waiting. Press an order button to start."; msg.classList.add("stopped"); }
-  else { msg.textContent=`▶ The supply chain is working on ${open} order${open>1?"s":""}`; msg.classList.remove("stopped"); }
+  if (speed===0){ msg.textContent="⏸ Stopped"; msg.classList.add("stopped"); }
+  else { msg.textContent=`▶ ${open} order${open>1?"s":""} in progress`; msg.classList.remove("stopped"); }
   document.getElementById("clock").innerHTML = `${clockText(S.t)}<small>Supply chain clock</small>`;
 
   // product cards
@@ -510,14 +527,10 @@ const ordersEl=document.getElementById("orders");
 PRODUCTS.forEach(p=>{
   const d=document.createElement("div"); d.className="card";
   d.innerHTML=`
-    <div class="top"><div class="big emoji">${p.icon}</div>
-      <div><h3>${p.name}</h3><div class="route">${shortRoute[p.id]}</div></div></div>
-    <button>Order 1 ${p.name}</button>
-    <div class="stats">
-      <div class="stat"><b data-k="open">0</b><span>Waiting</span></div>
-      <div class="stat"><b data-k="done">0</b><span>Collected</span></div>
-      <div class="stat"><b data-k="avg">—</b><span>Avg. wait</span></div>
-    </div>`;
+    <div class="big emoji">${p.icon}</div>
+    <div class="info"><h3>${p.name}</h3>
+      <div class="nums"><span><b data-k="open">0</b> waiting · <b data-k="done">0</b> done</span><span>avg. wait <b data-k="avg">—</b></span></div></div>
+    <button title="Place 1 order">Order 1</button>`;
   d.querySelector("button").addEventListener("click",()=>placeOrder(p));
   ordersEl.appendChild(d);
   cards[p.id]={box:d, open:d.querySelector('[data-k="open"]'), done:d.querySelector('[data-k="done"]'), avg:d.querySelector('[data-k="avg"]')};
@@ -557,8 +570,13 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
   S.vehicles.forEach(v=>v.g.remove());
   S = freshState();
   logEl.innerHTML='<li class="empty">Nothing yet — place an order to get things moving.</li>';
+  tickerEl.innerHTML='Press an <b>Order</b> button below — one press is one order.';
 });
 
+const overlay=document.getElementById("overlay");
+document.getElementById("infoBtn").addEventListener("click",()=>overlay.classList.add("open"));
+document.getElementById("closeBtn").addEventListener("click",()=>overlay.classList.remove("open"));
+overlay.addEventListener("click",e=>{ if(e.target===overlay) overlay.classList.remove("open"); });
 const slider=document.getElementById("speedSlider");
 slider.addEventListener("input",()=>{ speedLevel=+slider.value; document.getElementById("speedVal").textContent=speedLevel; });
 
