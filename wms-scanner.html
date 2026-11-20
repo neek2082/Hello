@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1565c0">
+<meta name="mobile-web-app-capable" content="yes">
+<title>WMS Scanner</title>
+<link rel="manifest" id="appManifest">
+<link rel="icon" id="appIcon">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #f3f7fc;
+    color: #0d2b4e;
+  }
+  header {
+    background: #1565c0;
+    color: #fff;
+    padding: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  header h1 { margin: 0; font-size: 1.3rem; }
+  header p { margin: 3px 0 0; font-size: 0.9rem; opacity: 0.9; }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 40px; }
+  .screen { display: none; }
+  .screen.show { display: block; }
+
+  .card {
+    background: #fff;
+    border: 1px solid #d6e4f5;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  h2 { font-size: 1.15rem; margin: 0 0 10px; color: #1565c0; }
+  p { line-height: 1.45; }
+
+  button { font: inherit; cursor: pointer; border: none; border-radius: 12px; }
+  .primary {
+    width: 100%;
+    background: #1565c0;
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 15px;
+  }
+  .primary:active { background: #0d47a1; }
+  .primary:disabled { background: #9db8d9; }
+  .secondary {
+    width: 100%;
+    background: #e3eefb;
+    color: #1565c0;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 13px;
+  }
+  .link {
+    background: none;
+    color: #1565c0;
+    text-decoration: underline;
+    padding: 8px 0;
+    font-size: 0.95rem;
+  }
+
+  /* Team picker */
+  .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .teams button {
+    background: #fff;
+    border: 2px solid #c5d9f1;
+    color: #1565c0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    padding: 22px 0;
+  }
+  .teams button:active { background: #e3eefb; }
+  .teams button:last-child { grid-column: span 2; }
+
+  /* Order */
+  .order-info { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 0.95rem; }
+  .order-info b { color: #4a6585; font-weight: 600; }
+  .reminder {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    color: #6d4c00;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 14px;
+    font-size: 0.95rem;
+  }
+  .line {
+    background: #fff;
+    border: 1px solid #d6e4f5;
+    border-left: 6px solid #9db8d9;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .line.received { border-left-color: #f59e0b; }
+  .line.done { border-left-color: #2e7d32; }
+  .line .top { display: flex; justify-content: space-between; gap: 8px; }
+  .line .name { font-weight: 600; font-size: 1.02rem; }
+  .line .code { font-size: 0.85rem; color: #4a6585; margin-top: 2px; font-family: ui-monospace, monospace; }
+  .line .qty { text-align: right; white-space: nowrap; font-size: 0.85rem; color: #4a6585; }
+  .line .qty strong { display: block; font-size: 1.3rem; color: #0d2b4e; }
+  .status {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: #eef3f9;
+    color: #4a6585;
+  }
+  .line.received .status { background: #fff3e0; color: #b45309; }
+  .line.done .status { background: #e8f5e9; color: #2e7d32; }
+  .line .secondary { margin-top: 10px; }
+
+  /* Scanner */
+  #scanner {
+    position: fixed; inset: 0;
+    background: #0b1f38;
+    z-index: 20;
+    display: none;
+    flex-direction: column;
+    color: #fff;
+  }
+  #scanner.show { display: flex; }
+  #scanTitle { padding: 18px 16px 6px; font-size: 1.2rem; font-weight: 700; text-align: center; }
+  #scanHint { padding: 0 16px 12px; text-align: center; opacity: 0.85; font-size: 0.95rem; }
+  .videoBox { position: relative; flex: 1; overflow: hidden; background: #000; }
+  #video { width: 100%; height: 100%; object-fit: cover; }
+  .aim {
+    position: absolute; left: 8%; right: 8%; top: 38%; height: 24%;
+    border: 3px solid #fff; border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);
+  }
+  .aim::after {
+    content: ""; position: absolute; left: 4%; right: 4%; top: 50%;
+    height: 2px; background: #42a5f5;
+  }
+  #camMsg {
+    position: absolute; left: 16px; right: 16px; top: 16px;
+    background: rgba(255,255,255,0.95); color: #0d2b4e;
+    border-radius: 10px; padding: 12px; font-size: 0.95rem; display: none;
+  }
+  .scanBottom { padding: 14px 16px 22px; background: #0b1f38; }
+  .typeRow { display: none; gap: 8px; margin-bottom: 10px; }
+  .typeRow.show { display: flex; }
+  .typeRow input {
+    flex: 1; font-size: 1.1rem; padding: 12px; border-radius: 10px; border: none;
+  }
+  .typeRow button { background: #42a5f5; color: #fff; font-weight: 600; padding: 0 18px; }
+  .scanBottom .link { color: #bcd4f0; display: block; margin: 0 auto 8px; }
+  .scanBottom .secondary { background: #fff; }
+
+  /* Pop-ups */
+  .overlay {
+    position: fixed; inset: 0; z-index: 30;
+    background: rgba(13,43,78,0.55);
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .overlay.show { display: flex; }
+  .sheet {
+    background: #fff; width: 100%; max-width: 560px;
+    border-radius: 18px 18px 0 0; padding: 20px 16px 26px;
+  }
+  .bigIcon { font-size: 2.6rem; text-align: center; line-height: 1; }
+  .sheet h3 { text-align: center; margin: 10px 0 6px; font-size: 1.2rem; }
+  .sheet .sub { text-align: center; color: #4a6585; margin: 0 0 14px; }
+  .sheet.good h3 { color: #2e7d32; }
+  .sheet.bad h3 { color: #c62828; }
+  .shelfBig {
+    text-align: center; font-size: 2.4rem; font-weight: 800; color: #1565c0;
+    letter-spacing: 1px; margin: 6px 0 14px;
+    font-family: ui-monospace, monospace;
+  }
+  .qtyRow { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 8px 0 18px; }
+  .qtyRow button {
+    width: 56px; height: 56px; font-size: 1.8rem; font-weight: 700;
+    background: #e3eefb; color: #1565c0;
+  }
+  .qtyRow input {
+    width: 100px; text-align: center; font-size: 2rem; font-weight: 700;
+    padding: 8px; border: 2px solid #c5d9f1; border-radius: 12px; color: #0d2b4e;
+  }
+  .gap { height: 10px; }
+
+  /* Results */
+  .score {
+    text-align: center; padding: 22px 14px;
+    background: #1565c0; color: #fff; border-radius: 16px; margin-bottom: 14px;
+  }
+  .score .num { font-size: 3.4rem; font-weight: 800; line-height: 1; }
+  .score .of { opacity: 0.85; margin-top: 4px; }
+  .score .msg { margin-top: 10px; font-size: 1.05rem; font-weight: 600; }
+  .result-item {
+    display: flex; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid #e3eefb; font-size: 0.95rem; line-height: 1.4;
+  }
+  .result-item:last-child { border-bottom: none; }
+  .result-item .pts { margin-left: auto; font-weight: 700; white-space: nowrap; }
+  .ok .pts { color: #2e7d32; }
+  .miss .pts { color: #c62828; }
+
+  .install { background: #e3eefb; border-color: #bcd4f0; font-size: 0.92rem; }
+  .install h2 { font-size: 1rem; }
+  .install ol { padding-left: 20px; margin: 6px 0 0; }
+  #installBtn { display: none; margin-top: 8px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📦 WMS Scanner</h1>
+  <p id="headerSub">Receiving and putaway practice</p>
+</header>
+
+<main>
+
+  <!-- 1. Pick team -->
+  <section class="screen" id="teamScreen">
+    <div class="card">
+      <h2>Which team are you?</h2>
+      <p style="margin-top:0">Choose your team to see the items you need to check.</p>
+      <div class="teams">
+        <button data-team="1">Team 1</button>
+        <button data-team="2">Team 2</button>
+        <button data-team="3">Team 3</button>
+        <button data-team="4">Team 4</button>
+        <button data-team="5">Team 5</button>
+      </div>
+    </div>
+
+    <div class="card install" id="installCard">
+      <h2>Put this app on your home screen</h2>
+      <p style="margin:0">In Chrome, tap the ⋮ menu at the top right, then <b>Add to Home screen</b> or <b>Install app</b>.</p>
+      <button class="primary" id="installBtn">Install app</button>
+    </div>
+  </section>
+
+  <!-- 2. Order -->
+  <section class="screen" id="orderScreen">
+    <div class="card">
+      <div class="order-info">
+        <b>Order (PO)</b><span>PO-2026-1120</span>
+        <b>Supplier</b><span>Bright Parts Supply</span>
+        <b>Delivery note</b><span>DO-55871</span>
+        <b>Team</b><span id="teamLabel"></span>
+      </div>
+    </div>
+
+    <div class="reminder">
+      ⚠ <b>Before you start:</b> check the items against the delivery note (DO).
+      Only receive items that match.
+    </div>
+
+    <button class="primary" id="receiveBtn">📷 Receive an item</button>
+    <div class="gap"></div>
+
+    <div id="lines"></div>
+
+    <div class="gap"></div>
+    <button class="secondary" id="doneBtn">✅ I'm done. Show my score</button>
+    <div style="text-align:center">
+      <button class="link" id="restartBtn1">Start over</button>
+    </div>
+  </section>
+
+  <!-- 3. Results -->
+  <section class="screen" id="resultScreen">
+    <div class="score">
+      <div class="num" id="scoreNum">0</div>
+      <div class="of">out of 100</div>
+      <div class="msg" id="scoreMsg"></div>
+    </div>
+    <div class="card">
+      <h2>How you did</h2>
+      <div id="resultList"></div>
+    </div>
+    <div class="card" id="mistakeCard">
+      <h2>Wrong scans</h2>
+      <div id="mistakeList"></div>
+    </div>
+    <button class="primary" id="restartBtn2">🔄 Try again</button>
+  </section>
+
+</main>
+
+<!-- Camera scanner -->
+<div id="scanner">
+  <div id="scanTitle">Scan the product</div>
+  <div id="scanHint">Point the camera at the barcode</div>
+  <div class="videoBox">
+    <video id="video" playsinline muted></video>
+    <div class="aim"></div>
+    <div id="camMsg"></div>
+  </div>
+  <div class="scanBottom">
+    <div class="typeRow" id="typeRow">
+      <input id="typeBox" type="text" autocomplete="off" autocapitalize="characters" placeholder="Type the code">
+      <button id="typeGo">OK</button>
+    </div>
+    <button class="link" id="typeToggle">Barcode won't scan? Type the code instead</button>
+    <button class="secondary" id="scanCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- Pop-up sheet -->
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+/* =====================================================================
+   DATA (written into the app, no internet needed)
+   ===================================================================== */
+
+// Every product in the system (product list)
+var PRODUCTS = {
+  "0986424554": "Light Bulb, Frosted, 40W",
+  "1457429291": "Light Bulb, Clear, 60W 700lm",
+  "1987946053": "Hd Scr, Ch., Slotted",
+  "0783259203": "IR Reflex Pic Controlled",
+  "0451103300": "Light Bulb, Compact Size, Softwhite, 100W",
+  "0242240847": "Sprg R-Knob, SUS301",
+  "0451103259": "Light Bulb, Compact Size, Clear, 25W",
+  "1987301001": "Screw, Captive",
+  "0332019150": "IR Reflex Pic Controlled, (R)",
+  "0451103318": "Nut, Self Clinching",
+  "0986494056": "Nut",
+  "1463161342": "IR Reflex Pic Controlled, (X)",
+  "1987432156": "Support Post, Dual Locking, Miniature",
+  "0451203012": "Plate, Zinc, Standoff",
+  "1987301040": "Essentra Components, Part No: UMS-24-45",
+  "0450904150": "Essentra Components, Part No. AL3",
+  "6122338102": "Kwik Klip Type \"R\"",
+  "7611914219": "BN 612 M 8 x 20",
+  "5051500080": "Combidriv Pan Head Captive Screw",
+  "1446731512": "M12 - 1.75x 1.5D",
+  "4080600022": "Cable Clamp",
+  "5845503840": "Snap Bushing",
+  "8751785250": "Screws 25mm M4x12",
+  "6000209918": "BN 58 M4x12",
+  "4383422030": "BN4 M3x40",
+  "7077100206": "SocCap Scr M2x6, w/Patch",
+  "7823240050": "Hexagon Nuts",
+  "2024729035": "Blind Threaded Studs",
+  "6192381237": "Screws 40mm",
+  "7166827070": "BN 13255 M5x10",
+  "1019305138": "Flat Gasket 3mm",
+  "0888888887": "Twist Lok. 556.51 Nylon, TL-600",
+  "0888888888": "M2.5x8",
+  "0783259204": "M10/11/20/2 Steel 100HV"
+};
+
+// The purchase order: 15 lines, 3 per team in order.
+// shouldReceive:false = planned error (must NOT be received).
+// shelf = where the system tells students to put it away.
+var ORDER = [
+  { line: 1,  team: 1, code: "0451103300", name: "100W Softwhite Compact Size Light Bulb", qty: 3, shelf: "A-11-2", shouldReceive: true },
+  { line: 2,  team: 1, code: "0888888886", name: "12x80 Sleeve",                           qty: 4, shelf: "",       shouldReceive: false },
+  { line: 3,  team: 1, code: "0451103259", name: "25W Clear Compact Size Light Bulb",      qty: 3, shelf: "A-5-2",  shouldReceive: true },
+  { line: 4,  team: 2, code: "0888888888", name: "M2.5 x8",                                qty: 4, shelf: "A-8-2",  shouldReceive: true },
+  { line: 5,  team: 2, code: "1987946053", name: "Slotted Ch. Hd Scr",                     qty: 3, shelf: "B-6-1",  shouldReceive: false },
+  { line: 6,  team: 2, code: "0242240847", name: "Sprg R-Knob, SUS301",                    qty: 3, shelf: "A-7-2",  shouldReceive: true },
+  { line: 7,  team: 3, code: "1987301040", name: "Essentra Components Part No: UMS-24-45", qty: 4, shelf: "B-4-1",  shouldReceive: true },
+  { line: 8,  team: 3, code: "1987432156", name: "Miniature Dual Locking Support Post",    qty: 4, shelf: "B-8-1",  shouldReceive: false },
+  { line: 9,  team: 3, code: "0451103318", name: "Self Clinching Nut",                     qty: 3, shelf: "B-5-2",  shouldReceive: true },
+  { line: 10, team: 4, code: "1987301001", name: "Captive Screw",                          qty: 4, shelf: "C-3-1",  shouldReceive: true },
+  { line: 11, team: 4, code: "0250203002", name: "M4 x14",                                 qty: 4, shelf: "",       shouldReceive: false },
+  { line: 12, team: 4, code: "0986494056", name: "Self Locking Nut",                       qty: 4, shelf: "C-5-2",  shouldReceive: true },
+  { line: 13, team: 5, code: "0451203012", name: "Standoff Zinc Plate",                    qty: 3, shelf: "D-10-3", shouldReceive: true },
+  { line: 14, team: 5, code: "0888888889", name: "Stud",                                   qty: 3, shelf: "",       shouldReceive: false },
+  { line: 15, team: 5, code: "0888888887", name: "Twist Lok. 551.65 Nylon TL-600",         qty: 3, shelf: "D-3-3",  shouldReceive: true }
+];
+
+// Every shelf in the warehouse: A to D, bays 1 to 15, levels 1 to 3
+var SHELVES = {};
+["A", "B", "C", "D"].forEach(function (aisle) {
+  for (var bay = 1; bay <= 15; bay++) {
+    for (var level = 1; level <= 3; level++) SHELVES[aisle + "-" + bay + "-" + level] = true;
+  }
+});
+
+var PENALTY = 2;
+
+/* =====================================================================
+   SAVED PROGRESS (kept on this phone only)
+   ===================================================================== */
+var SAVE_KEY = "wmsScannerProgress_v1";
+var state = null;
+
+function freshState() { return { team: null, lines: {}, wrong: [], finished: false }; }
+function load() {
+  try { state = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { state = null; }
+  if (!state || typeof state !== "object") state = freshState();
+}
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {} }
+function lineState(n) {
+  if (!state.lines[n]) state.lines[n] = { received: null, putAway: false };
+  return state.lines[n];
+}
+function myLines() { return ORDER.filter(function (l) { return l.team === state.team; }); }
+
+/* =====================================================================
+   HELPERS
+   ===================================================================== */
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+function clean(code) { return String(code || "").trim().toUpperCase().replace(/\s+/g, ""); }
+function sameCode(a, b) {
+  a = clean(a); b = clean(b);
+  if (a === b) return true;
+  // Some barcodes drop the leading zeros of number codes
+  if (/^\d+$/.test(a) && /^\d+$/.test(b)) return a.replace(/^0+/, "") === b.replace(/^0+/, "");
+  return false;
+}
+function findProduct(code) {
+  for (var k in PRODUCTS) if (sameCode(k, code)) return k;
+  return null;
+}
+function isShelf(code) { return !!SHELVES[clean(code)]; }
+
+var audioCtx = null;
+function beep(good) {
+  try {
+    if (navigator.vibrate) navigator.vibrate(good ? 80 : [120, 80, 120]);
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = good ? 1200 : 300;
+    o.type = good ? "sine" : "square";
+    g.gain.value = 0.12;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + (good ? 0.12 : 0.35));
+  } catch (e) {}
+}
+
+function addWrong(text) {
+  state.wrong.push(text);
+  save();
+}
+
+/* =====================================================================
+   SCREENS
+   ===================================================================== */
+function showScreen(id) {
+  ["teamScreen", "orderScreen", "resultScreen"].forEach(function (s) {
+    $(s).classList.toggle("show", s === id);
+  });
+  window.scrollTo(0, 0);
+}
+
+function render() {
+  if (!state.team) {
+    $("headerSub").textContent = "Receiving and putaway practice";
+    showScreen("teamScreen");
+    return;
+  }
+  $("headerSub").textContent = "Team " + state.team + " · PO-2026-1120";
+  if (state.finished) { showResults(); return; }
+
+  $("teamLabel").textContent = "Team " + state.team;
+  var html = "";
+  myLines().forEach(function (l) {
+    var s = lineState(l.line);
+    var cls = "line", status = "Not started", extra = "";
+    if (s.received !== null && !s.putAway) {
+      cls += " received";
+      status = "Received " + s.received + " · waiting to put away";
+      extra = '<button class="secondary" data-putaway="' + l.line + '">📷 Put away to shelf</button>';
+    } else if (s.putAway) {
+      cls += " done";
+      status = "✓ Received " + s.received + " · put away on " + l.shelf;
+    }
+    html +=
+      '<div class="' + cls + '">' +
+        '<div class="top">' +
+          '<div><div class="name">Line ' + l.line + ': ' + esc(l.name) + '</div>' +
+          '<div class="code">' + l.code + '</div></div>' +
+          '<div class="qty">Ordered<strong>' + l.qty + '</strong>ea</div>' +
+        '</div>' +
+        '<span class="status">' + status + '</span>' + extra +
+      '</div>';
+  });
+  $("lines").innerHTML = html;
+  showScreen("orderScreen");
+}
+
+/* =====================================================================
+   POP-UP SHEET
+   ===================================================================== */
+function openSheet(html, kind) {
+  var sheet = $("sheet");
+  sheet.className = "sheet" + (kind ? " " + kind : "");
+  sheet.innerHTML = html;
+  $("overlay").classList.add("show");
+}
+function closeSheet() { $("overlay").classList.remove("show"); }
+
+function message(kind, icon, title, sub, buttons) {
+  var html = '<div class="bigIcon">' + icon + '</div><h3>' + title + '</h3>' +
+             (sub ? '<p class="sub">' + sub + '</p>' : "");
+  buttons.forEach(function (b, i) {
+    html += (i ? '<div class="gap"></div>' : "") +
+      '<button class="' + (b.style || "primary") + '" id="sheetBtn' + i + '">' + b.label + '</button>';
+  });
+  openSheet(html, kind);
+  buttons.forEach(function (b, i) {
+    $("sheetBtn" + i).onclick = function () { closeSheet(); if (b.action) b.action(); };
+  });
+}
+
+/* =====================================================================
+   CAMERA SCANNER
+   ===================================================================== */
+var scan = { stream: null, detector: null, timer: null, onCode: null, last: "", hits: 0, busy: false };
+
+function openScanner(title, hint, onCode) {
+  scan.onCode = onCode;
+  scan.last = ""; scan.hits = 0; scan.busy = false;
+  $("scanTitle").textContent = title;
+  $("scanHint").textContent = hint;
+  $("typeBox").value = "";
+  $("typeRow").classList.remove("show");
+  $("camMsg").style.display = "none";
+  $("scanner").classList.add("show");
+  startCamera();
+}
+
+function closeScanner() {
+  $("scanner").classList.remove("show");
+  stopCamera();
+}
+
+function camProblem(text) {
+  $("camMsg").textContent = text;
+  $("camMsg").style.display = "block";
+  $("typeRow").classList.add("show");
+}
+
+function startCamera() {
+  if (!("BarcodeDetector" in window)) {
+    camProblem("This phone or browser can't scan barcodes. Please use Chrome on an Android phone, or type the code below.");
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    camProblem("The camera isn't available here. Open this app from its web link (https) in Chrome, or type the code below.");
+    return;
+  }
+  var wanted = ["code_128", "code_39", "code_93", "codabar", "ean_13", "ean_8", "itf", "upc_a", "upc_e", "qr_code"];
+  BarcodeDetector.getSupportedFormats().then(function (supported) {
+    var formats = wanted.filter(function (f) { return supported.indexOf(f) !== -1; });
+    scan.detector = new BarcodeDetector(formats.length ? { formats: formats } : undefined);
+    return navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+  }).then(function (stream) {
+    if (!$("scanner").classList.contains("show")) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
+    scan.stream = stream;
+    var v = $("video");
+    v.srcObject = stream;
+    v.play();
+    loop();
+  }).catch(function () {
+    camProblem("We couldn't open the camera. Allow camera access when Chrome asks, or type the code below.");
+  });
+}
+
+function stopCamera() {
+  clearTimeout(scan.timer);
+  if (scan.stream) scan.stream.getTracks().forEach(function (t) { t.stop(); });
+  scan.stream = null;
+  $("video").srcObject = null;
+}
+
+function loop() {
+  if (!scan.stream) return;
+  var v = $("video");
+  if (v.readyState >= 2 && !scan.busy) {
+    scan.detector.detect(v).then(function (codes) {
+      if (codes.length) {
+        var text = clean(codes[0].rawValue);
+        // Read the same code twice in a row to avoid misreads
+        if (text === scan.last) scan.hits++; else { scan.last = text; scan.hits = 1; }
+        if (scan.hits >= 2) { gotCode(text); return; }
+      }
+      scan.timer = setTimeout(loop, 120);
+    }).catch(function () { scan.timer = setTimeout(loop, 250); });
+  } else {
+    scan.timer = setTimeout(loop, 150);
+  }
+}
+
+function gotCode(text) {
+  if (!text) return;
+  scan.busy = true;
+  var handler = scan.onCode;
+  closeScanner();
+  handler(text);
+}
+
+/* =====================================================================
+   RECEIVING
+   ===================================================================== */
+function startReceive() {
+  openScanner("Receive: scan the product", "Point the camera at the product barcode", handleProductScan);
+}
+
+function handleProductScan(code) {
+  if (isShelf(code)) {
+    beep(false);
+    message("bad", "🏷️", "That's a shelf label", "To receive, scan the barcode on the <b>product</b>.",
+      [{ label: "Scan again", action: startReceive }, { label: "Back", style: "secondary" }]);
+    return;
+  }
+
+  var known = findProduct(code);
+  var line = null;
+  myLines().forEach(function (l) { if (sameCode(l.code, code)) line = l; });
+
+  if (!known) {
+    beep(false);
+    addWrong("Scanned " + code + ", which is not in the system.");
+    message("bad", "❌", "Product not found", "<b>" + esc(code) + "</b> is not in the system. It can't be received.<br>(−" + PENALTY + " points)",
+      [{ label: "Back to order", style: "secondary" }]);
+    return;
+  }
+
+  if (!line) {
+    beep(false);
+    addWrong("Scanned " + code + " (" + PRODUCTS[known] + "), which is not on your team's list.");
+    message("bad", "❌", "Not on your list", "<b>" + esc(PRODUCTS[known]) + "</b> is not one of your team's items.<br>(−" + PENALTY + " points)",
+      [{ label: "Back to order", style: "secondary" }]);
+    return;
+  }
+
+  var s = lineState(line.line);
+  if (s.received !== null) {
+    beep(false);
+    message("bad", "ℹ️", "Already received", "Line " + line.line + " was already received (" + s.received + " ea).",
+      [{ label: "OK", style: "secondary" }]);
+    return;
+  }
+
+  beep(true);
+  askQuantity(line);
+}
+
+function askQuantity(line) {
+  openSheet(
+    '<div class="bigIcon">✅</div>' +
+    '<h3 style="color:#2e7d32">Line ' + line.line + ' found</h3>' +
+    '<p class="sub"><b>' + esc(line.name) + '</b><br>' + line.code + '</p>' +
+    '<p style="text-align:center;margin:0;font-weight:600">How many did you count?</p>' +
+    '<div class="qtyRow">' +
+      '<button id="qMinus">−</button>' +
+      '<input id="qBox" type="number" inputmode="numeric" min="1" value="1">' +
+      '<button id="qPlus">+</button>' +
+    '</div>' +
+    '<button class="primary" id="qOk">Confirm received</button>' +
+    '<div class="gap"></div>' +
+    '<button class="secondary" id="qCancel">Cancel</button>', "good");
+
+  $("qMinus").onclick = function () { $("qBox").value = Math.max(1, (parseInt($("qBox").value, 10) || 1) - 1); };
+  $("qPlus").onclick = function () { $("qBox").value = (parseInt($("qBox").value, 10) || 0) + 1; };
+  $("qCancel").onclick = closeSheet;
+  $("qOk").onclick = function () {
+    var n = parseInt($("qBox").value, 10);
+    if (!n || n < 1) { $("qBox").focus(); return; }
+    lineState(line.line).received = n;
+    save();
+    closeSheet();
+    render();
+    showPutawayTask(line);
+  };
+}
+
+/* =====================================================================
+   PUTAWAY
+   ===================================================================== */
+function showPutawayTask(line) {
+  openSheet(
+    '<div class="bigIcon">🚚</div>' +
+    '<h3>Put away</h3>' +
+    '<p class="sub">Take <b>' + esc(line.name) + '</b> (' + lineState(line.line).received + ' ea) to shelf:</p>' +
+    '<div class="shelfBig">' + line.shelf + '</div>' +
+    '<button class="primary" id="paScan">📷 I\'m at the shelf. Scan it</button>' +
+    '<div class="gap"></div>' +
+    '<button class="secondary" id="paLater">Later</button>');
+  $("paLater").onclick = closeSheet;
+  $("paScan").onclick = function () {
+    closeSheet();
+    openScanner("Put away to " + line.shelf, "Scan the label on the shelf", function (code) { handleShelfScan(line, code); });
+  };
+}
+
+function handleShelfScan(line, code) {
+  if (!isShelf(code)) {
+    beep(false);
+    message("bad", "📦", "That's not a shelf label", "Scan the label on the <b>shelf</b>, not the product.",
+      [{ label: "Scan again", action: function () { showPutawayTask(line); } }, { label: "Back", style: "secondary" }]);
+    return;
+  }
+  if (clean(code) !== line.shelf) {
+    beep(false);
+    addWrong("Line " + line.line + " (" + line.name + "): scanned shelf " + clean(code) + ", but the right shelf was " + line.shelf + ".");
+    message("bad", "❌", "Wrong shelf", "You scanned <b>" + esc(clean(code)) + "</b>.<br>This item goes to <b>" + line.shelf + "</b>.<br>(−" + PENALTY + " points)",
+      [{ label: "Try again", action: function () { showPutawayTask(line); } }, { label: "Back", style: "secondary" }]);
+    return;
+  }
+  beep(true);
+  lineState(line.line).putAway = true;
+  save();
+  render();
+  message("good", "✅", "Put away done", "<b>" + esc(line.name) + "</b> is now on shelf <b>" + line.shelf + "</b>.",
+    [{ label: "OK" }]);
+}
+
+/* =====================================================================
+   SCORE AND RESULTS
+   ===================================================================== */
+function scoreTeam() {
+  var items = [], points = 0;
+  myLines().forEach(function (l) {
+    var s = lineState(l.line);
+    if (l.shouldReceive) {
+      if (s.received === null) {
+        items.push({ ok: false, pts: 0, text: "Line " + l.line + " (" + l.name + "): not received." });
+        items.push({ ok: false, pts: 0, text: "Line " + l.line + ": not put away." });
+      } else {
+        if (s.received === l.qty) {
+          points += 20;
+          items.push({ ok: true, pts: 20, text: "Line " + l.line + " (" + l.name + "): received the right quantity (" + l.qty + ")." });
+        } else {
+          items.push({ ok: false, pts: 0, text: "Line " + l.line + " (" + l.name + "): received " + s.received + ", but " + l.qty + " were ordered." });
+        }
+        if (s.putAway) {
+          points += 20;
+          items.push({ ok: true, pts: 20, text: "Line " + l.line + ": put away on the right shelf (" + l.shelf + ")." });
+        } else {
+          items.push({ ok: false, pts: 0, text: "Line " + l.line + ": received but not put away. It should go to " + l.shelf + "." });
+        }
+      }
+    } else {
+      if (s.received === null) {
+        points += 20;
+        items.push({ ok: true, pts: 20, text: "Line " + l.line + " (" + l.name + "): correctly NOT received. It doesn't match the delivery note." });
+      } else {
+        items.push({ ok: false, pts: 0, text: "Line " + l.line + " (" + l.name + "): should NOT have been received. Always check items against the delivery note (DO) first." });
+      }
+    }
+  });
+  var penalty = state.wrong.length * PENALTY;
+  return { items: items, before: points, penalty: penalty, total: Math.max(0, points - penalty) };
+}
+
+function showResults() {
+  var r = scoreTeam();
+  $("scoreNum").textContent = r.total;
+  $("scoreMsg").textContent =
+    r.total === 100 ? "Perfect! Great work, Team " + state.team + "! 🎉" :
+    r.total >= 80 ? "Well done, Team " + state.team + "!" :
+    r.total >= 50 ? "Good try. Check your mistakes below." :
+    "Let's look at what went wrong and try again.";
+
+  $("resultList").innerHTML = r.items.map(function (i) {
+    return '<div class="result-item ' + (i.ok ? "ok" : "miss") + '">' +
+      '<span>' + (i.ok ? "✅" : "❌") + '</span><span>' + esc(i.text) + '</span>' +
+      '<span class="pts">' + (i.ok ? "+" + i.pts : "0") + '</span></div>';
+  }).join("");
+
+  if (state.wrong.length) {
+    $("mistakeCard").classList.remove("hidden");
+    $("mistakeList").innerHTML = state.wrong.map(function (w) {
+      return '<div class="result-item miss"><span>⚠️</span><span>' + esc(w) + '</span><span class="pts">−' + PENALTY + '</span></div>';
+    }).join("");
+  } else {
+    $("mistakeCard").classList.add("hidden");
+  }
+  showScreen("resultScreen");
+}
+
+/* =====================================================================
+   BUTTONS
+   ===================================================================== */
+document.querySelectorAll("[data-team]").forEach(function (b) {
+  b.onclick = function () {
+    var t = parseInt(b.getAttribute("data-team"), 10);
+    message("", "👥", "You are Team " + t + "?", "This phone will stay as Team " + t + " until you start over.",
+      [{ label: "Yes, start", action: function () { state = freshState(); state.team = t; save(); render(); } },
+       { label: "Choose again", style: "secondary" }]);
+  };
+});
+
+$("receiveBtn").onclick = startReceive;
+
+$("lines").addEventListener("click", function (e) {
+  var b = e.target.closest("[data-putaway]");
+  if (!b) return;
+  var n = parseInt(b.getAttribute("data-putaway"), 10);
+  showPutawayTask(ORDER.filter(function (l) { return l.line === n; })[0]);
+});
+
+$("doneBtn").onclick = function () {
+  message("", "🏁", "Finish now?", "You won't be able to scan any more after this.",
+    [{ label: "Yes, show my score", action: function () { state.finished = true; save(); render(); } },
+     { label: "Not yet", style: "secondary" }]);
+};
+
+function confirmRestart() {
+  message("bad", "🔄", "Start over?", "All scans on this phone will be cleared.",
+    [{ label: "Yes, start over", action: function () { state = freshState(); save(); render(); } },
+     { label: "Cancel", style: "secondary" }]);
+}
+$("restartBtn1").onclick = confirmRestart;
+$("restartBtn2").onclick = confirmRestart;
+
+$("scanCancel").onclick = closeScanner;
+$("typeToggle").onclick = function () {
+  $("typeRow").classList.toggle("show");
+  if ($("typeRow").classList.contains("show")) $("typeBox").focus();
+};
+function submitTyped() {
+  var v = clean($("typeBox").value);
+  if (!v) { $("typeBox").focus(); return; }
+  gotCode(v);
+}
+$("typeGo").onclick = submitTyped;
+$("typeBox").addEventListener("keydown", function (e) { if (e.key === "Enter") submitTyped(); });
+
+$("overlay").addEventListener("click", function (e) { if (e.target === this) closeSheet(); });
+
+/* =====================================================================
+   INSTALL ON HOME SCREEN
+   ===================================================================== */
+(function setUpInstall() {
+  function makeIcon(size) {
+    var c = document.createElement("canvas");
+    c.width = c.height = size;
+    var g = c.getContext("2d"), s = size / 100;
+    g.fillStyle = "#1565c0"; g.fillRect(0, 0, size, size);
+    g.fillStyle = "#ffffff";
+    var bars = [[20, 4], [27, 2], [32, 6], [41, 2], [46, 4], [53, 2], [58, 6], [67, 2], [72, 4], [79, 2]];
+    bars.forEach(function (b) { g.fillRect(b[0] * s, 26 * s, b[1] * s, 40 * s); });
+    g.fillRect(16 * s, 72 * s, 68 * s, 5 * s);
+    return c.toDataURL("image/png");
+  }
+  var i192 = makeIcon(192), i512 = makeIcon(512);
+  $("appIcon").href = i192;
+  var here = location.href.split("#")[0].split("?")[0];
+  var manifest = {
+    name: "WMS Scanner", short_name: "WMS Scanner",
+    start_url: here, id: here, scope: here.substring(0, here.lastIndexOf("/") + 1),
+    display: "standalone", orientation: "portrait",
+    background_color: "#f3f7fc", theme_color: "#1565c0",
+    icons: [{ src: i192, sizes: "192x192", type: "image/png" }, { src: i512, sizes: "512x512", type: "image/png" }]
+  };
+  $("appManifest").href = "data:application/manifest+json;charset=utf-8," + encodeURIComponent(JSON.stringify(manifest));
+
+  if (window.matchMedia("(display-mode: standalone)").matches) $("installCard").classList.add("hidden");
+  var waiting = null;
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault(); waiting = e; $("installBtn").style.display = "block";
+  });
+  $("installBtn").onclick = function () { if (waiting) { waiting.prompt(); waiting = null; this.style.display = "none"; } };
+  window.addEventListener("appinstalled", function () { $("installCard").classList.add("hidden"); });
+})();
+
+/* ===================================================================== */
+load();
+render();
+</script>
+</body>
+</html>
