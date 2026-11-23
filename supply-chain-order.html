@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d91">
+<title>Order from your phone · How a Supply Chain Works</title>
+<style>
+  :root{ --navy:#0b3d91; --blue:#1e6fd9; --light:#eaf3ff; --pale:#f5f9ff; --text:#14284b; --muted:#5a6f91; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+       background:var(--pale);color:var(--text);display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;
+       padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  header{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  header h1{margin:0;font-size:18px}
+  .room{background:#fff;color:var(--navy);border-radius:999px;padding:4px 12px;font-weight:800;font-size:15px;letter-spacing:1px;white-space:nowrap}
+
+  /* ---- the 4 big buttons, Kahoot style ---- */
+  .grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;padding:10px}
+  .tile{position:relative;border:none;border-radius:16px;color:#fff;cursor:pointer;touch-action:manipulation;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;min-height:140px;
+        box-shadow:0 5px 0 rgba(0,0,0,.22);transition:transform .08s, box-shadow .08s, filter .2s;font:inherit}
+  .tile:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.22)}
+  .tile:disabled{filter:saturate(.6) brightness(.95)}
+  .tile .ic{font-size:64px;line-height:1}
+  .tile .nm{font-size:22px;font-weight:800}
+  .tile .shape{position:absolute;top:12px;left:12px;width:26px;height:26px}
+  .tile .count{position:absolute;top:10px;right:12px;background:rgba(255,255,255,.95);color:var(--navy);border-radius:999px;
+               min-width:30px;padding:2px 8px;font-weight:800;font-size:15px;display:none}
+  .tile.pop{animation:pop .35s ease}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(.94)}100%{transform:scale(1)}}
+  .t1{background:#0b3d91} .t2{background:#1e6fd9} .t3{background:#0a7bbf} .t4{background:#3f5fc8}
+
+  footer{padding:10px 16px 14px;text-align:center;font-size:15px;color:var(--muted)}
+  footer b{color:var(--navy)}
+
+  /* ---- message bubble ---- */
+  .toast{position:fixed;left:50%;bottom:calc(70px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);opacity:0;
+         background:var(--navy);color:#fff;border-radius:14px;padding:12px 18px;font-size:16px;font-weight:600;max-width:90vw;text-align:center;
+         box-shadow:0 6px 20px rgba(11,61,145,.35);transition:opacity .2s, transform .2s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.bad{background:#b3261e}
+
+  /* ---- join screen ---- */
+  .join{flex:1;display:flex;align-items:center;justify-content:center;padding:20px}
+  .joinbox{background:#fff;border:2px solid #c9ddf7;border-radius:18px;padding:22px;max-width:380px;width:100%;text-align:center}
+  .joinbox h2{margin:0 0 6px;color:var(--navy)}
+  .joinbox p{margin:0 0 14px;color:var(--muted);line-height:1.4}
+  .joinbox input{width:100%;font-size:30px;font-weight:800;letter-spacing:8px;text-align:center;text-transform:uppercase;
+                 border:2px solid #c9ddf7;border-radius:12px;padding:10px;color:var(--navy)}
+  .joinbox input:focus{outline:none;border-color:var(--blue)}
+  .joinbox button{margin-top:12px;width:100%;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px;font-size:18px;font-weight:800;cursor:pointer}
+  .err{color:#b3261e;font-weight:600;min-height:22px;margin-top:10px}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌏 Order a product</h1>
+  <div class="room" id="roomTag" hidden>Room —</div>
+</header>
+
+<!-- Step 1: enter the room code (only if the QR link didn't include it) -->
+<section class="join" id="joinView" hidden>
+  <div class="joinbox">
+    <h2>Join the big screen</h2>
+    <p>Type the 4-letter room code shown on the big screen.</p>
+    <input id="codeInput" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="ABCD">
+    <button id="joinBtn">Join</button>
+    <div class="err" id="joinErr"></div>
+  </div>
+</section>
+
+<!-- Step 2: the 4 big order buttons -->
+<section class="grid" id="orderView" hidden></section>
+<footer id="foot" hidden>You have ordered <b id="total">0</b> item(s). Watch the big screen!</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==================================================================
+   SETTINGS — paste the same database address as on the big screen
+================================================================== */
+const DB_URL = "";   // e.g. "https://your-project-default-rtdb.asia-southeast1.firebasedatabase.app"
+
+const PRODUCTS = [
+  {id:"phone", name:"Smartphone",  icon:"📱", shape:"tri",  cls:"t1"},
+  {id:"shoe",  name:"Sneakers",    icon:"👟", shape:"dia",  cls:"t2"},
+  {id:"bike",  name:"Bicycle",     icon:"🚲", shape:"circ", cls:"t3"},
+  {id:"juice", name:"Fruit Juice", icon:"🧃", shape:"sq",   cls:"t4"}
+];
+const SHAPES = {
+  tri :'<svg class="shape" viewBox="0 0 26 26"><path d="M13 2 25 24H1z" fill="#fff"/></svg>',
+  dia :'<svg class="shape" viewBox="0 0 26 26"><path d="M13 1 25 13 13 25 1 13z" fill="#fff"/></svg>',
+  circ:'<svg class="shape" viewBox="0 0 26 26"><circle cx="13" cy="13" r="12" fill="#fff"/></svg>',
+  sq  :'<svg class="shape" viewBox="0 0 26 26"><rect x="2" y="2" width="22" height="22" rx="2" fill="#fff"/></svg>'
+};
+const COOLDOWN_MS = 600;   // a short pause between taps so one finger can't flood the screen
+
+const $ = id => document.getElementById(id);
+let ROOM = null, total = 0, mine = {};
+const toastEl = $("toast"); let toastTimer;
+function toast(msg, bad){
+  toastEl.textContent = msg; toastEl.classList.toggle("bad", !!bad); toastEl.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>toastEl.classList.remove("show"), 1800);
+}
+
+async function roomExists(code){
+  const r = await fetch(`${DB_URL}/scs/rooms/${code}/info.json`);
+  if (!r.ok) throw new Error("bad response");
+  return (await r.json()) !== null;
+}
+
+function showJoin(msg){
+  $("joinView").hidden = false; $("orderView").hidden = true; $("foot").hidden = true; $("roomTag").hidden = true;
+  $("joinErr").textContent = msg || "";
+  setTimeout(()=>$("codeInput").focus(), 50);
+}
+
+function showOrders(){
+  $("joinView").hidden = true; $("orderView").hidden = false; $("foot").hidden = false;
+  $("roomTag").hidden = false; $("roomTag").textContent = "Room " + ROOM;
+  const grid = $("orderView"); grid.innerHTML = "";
+  PRODUCTS.forEach(p=>{
+    const b = document.createElement("button");
+    b.className = "tile " + p.cls;
+    b.innerHTML = `${SHAPES[p.shape]}<span class="count" id="c-${p.id}"></span><span class="ic">${p.icon}</span><span class="nm">${p.name}</span>`;
+    b.addEventListener("click", ()=>order(p, b));
+    grid.appendChild(b);
+  });
+}
+
+async function order(p, btn){
+  const all = document.querySelectorAll(".tile");
+  all.forEach(t=>t.disabled = true);
+  btn.classList.remove("pop"); void btn.offsetWidth; btn.classList.add("pop");
+  try { if (navigator.vibrate) navigator.vibrate(30); } catch(e){}
+  try{
+    const r = await fetch(`${DB_URL}/scs/rooms/${ROOM}/orders.json`, {
+      method:"POST", body: JSON.stringify({p:p.id, t:{".sv":"timestamp"}})
+    });
+    if (!r.ok) throw new Error("refused");
+    total++; mine[p.id] = (mine[p.id]||0) + 1;
+    $("total").textContent = total;
+    const c = $("c-"+p.id); c.textContent = mine[p.id]; c.style.display = "inline-block";
+    toast(`${p.icon} ${p.name} ordered! Watch it travel on the big screen.`);
+  } catch(e){
+    toast("Couldn't send your order. Check your internet and try again.", true);
+  }
+  setTimeout(()=>all.forEach(t=>t.disabled = false), COOLDOWN_MS);
+}
+
+async function join(code){
+  code = (code||"").trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(code)) { showJoin("The room code has 4 letters or numbers."); return; }
+  $("joinBtn").disabled = true; $("joinBtn").textContent = "Checking…";
+  try{
+    if (await roomExists(code)) {
+      ROOM = code;
+      try { history.replaceState(null, "", location.pathname + "?room=" + code); } catch(e){}
+      showOrders();
+    } else showJoin("We can't find that room. Check the code on the big screen.");
+  } catch(e){
+    showJoin("Can't connect right now. Check your internet and try again.");
+  }
+  $("joinBtn").disabled = false; $("joinBtn").textContent = "Join";
+}
+
+$("joinBtn").addEventListener("click", ()=>join($("codeInput").value));
+$("codeInput").addEventListener("keydown", e=>{ if (e.key==="Enter") join($("codeInput").value); });
+
+if (!DB_URL) {
+  showJoin(); $("joinErr").textContent = "Phone ordering isn't switched on yet.";
+  $("joinBtn").disabled = true;
+} else {
+  const fromLink = new URLSearchParams(location.search).get("room");
+  if (fromLink) { $("codeInput").value = fromLink.toUpperCase(); join(fromLink); }
+  else showJoin();
+}
+</script>
+</body>
+</html>

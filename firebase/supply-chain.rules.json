@@ -1,0 +1,21 @@
+{
+  "rules": {
+    "scs": {
+      "rooms": {
+        "$room": {
+          ".read": "$room.matches(/^[A-Z0-9]{4}$/)",
+          "info": {
+            ".write": "!data.exists() && $room.matches(/^[A-Z0-9]{4}$/)",
+            ".validate": "newData.hasChildren(['created']) && newData.child('created').val() == now"
+          },
+          "orders": {
+            "$order": {
+              ".write": "!data.exists() && newData.exists() && root.child('scs/rooms/' + $room + '/info').exists()",
+              ".validate": "newData.hasChildren(['p', 't']) && newData.child('p').isString() && newData.child('p').val().matches(/^(phone|shoe|bike|juice)$/) && newData.child('t').val() == now"
+            }
+          }
+        }
+      }
+    }
+  }
+}

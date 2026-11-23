@@ -75,6 +75,14 @@
   #log li .when{color:var(--muted);font-size:11.5px;white-space:nowrap;min-width:74px;padding-top:1px}
   .empty{color:var(--muted)}
 
+  /* ---------- big QR code pop-up ---------- */
+  .qrbox{background:#fff;border-radius:20px;padding:22px 26px;text-align:center;max-height:100%;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+  .qrbox h2{margin:0 0 4px;color:var(--navy);font-size:24px}
+  .qrbox p{margin:0 0 10px;color:var(--muted);font-size:15px}
+  #qrBigSvg{width:min(62vh,80vw);height:min(62vh,80vw);display:block;margin:0 auto}
+  .qrcodebig{font-size:34px;font-weight:800;letter-spacing:8px;color:var(--navy);margin-top:8px}
+  .qrlink{font-size:14px;color:var(--muted);word-break:break-all}
+
   /* ---------- narrow / portrait screens: let it scroll ---------- */
   @media (max-width:1000px), (orientation:portrait){
     body{height:auto;overflow:auto}
@@ -111,6 +119,17 @@
 
 <section class="orders" id="orders"></section>
 
+<div class="overlay" id="qrOverlay">
+  <div class="qrbox">
+    <h2>📱 Order from your phone</h2>
+    <p>Scan with your phone camera, then tap a product to order it.</p>
+    <svg id="qrBigSvg" role="img" aria-label="QR code to open the phone ordering page"></svg>
+    <div class="qrcodebig" id="qrBigCode">—</div>
+    <div class="qrlink">No camera? Go to <b id="qrBigLink"></b> and type the room code.</div>
+    <button class="closebtn" id="qrClose" style="margin-top:14px">Close</button>
+  </div>
+</div>
+
 <div class="overlay" id="overlay">
   <div class="sheet">
     <div class="sheet-head"><h2>How it works</h2><button class="closebtn" id="closeBtn">Close</button></div>
@@ -125,6 +144,7 @@
           <li><b>Ships</b> leave the Export Port once a day and carry every product together. The sea trip takes about 2½ days.</li>
           <li><b>Speed:</b> use the speed slider (1 = slow, 10 = fast). With no orders waiting, everything stops.</li>
           <li><b>Blue number on each place:</b> how many items are there right now — waiting, or being made or handled.</li>
+          <li><b>Phone ordering:</b> scan the QR code on the ocean with a phone camera. Each tap on the phone is one order, and it shows up here within a second.</li>
           <li>Only the factory reacts to orders. Everything after it simply passes items along as soon as it can.</li>
         </ul>
       </div>
@@ -804,11 +824,11 @@ PRODUCTS.forEach(p=>{
   cards[p.id]={box:d, open:d.querySelector('[data-k="open"]'), done:d.querySelector('[data-k="done"]'), avg:d.querySelector('[data-k="avg"]')};
 });
 function bumpCard(pid){ const b=cards[pid].done; b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump"); }
-function placeOrder(p){
+function placeOrder(p, fromPhone){
   const s=S.prod[p.id];
   s.open++; s.orderTimes.push(S.t);
   const b=cards[p.id].open; b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump");
-  log(`🛒 New order for 1 ${p.icon} ${p.name}`);
+  log(fromPhone ? `📲 A visitor ordered 1 ${p.icon} ${p.name} from their phone` : `🛒 New order for 1 ${p.icon} ${p.name}`);
 }
 
 // journey descriptions
@@ -847,6 +867,232 @@ document.getElementById("closeBtn").addEventListener("click",()=>overlay.classLi
 overlay.addEventListener("click",e=>{ if(e.target===overlay) overlay.classList.remove("open"); });
 const slider=document.getElementById("speedSlider");
 slider.addEventListener("input",()=>{ speedLevel=+slider.value; document.getElementById("speedVal").textContent=speedLevel; });
+
+
+/* ==================================================================
+   13. PHONE ORDERING  (visitors scan the QR code and order on their phone)
+   Paste your Firebase Realtime Database address below. Leave it empty
+   to switch phone ordering off (the QR code is then hidden).
+================================================================== */
+const DB_URL = "";   // e.g. "https://your-project-default-rtdb.asia-southeast1.firebasedatabase.app"
+const ORDER_PAGE = "supply-chain-order.html";   // the phone page, kept next to this file
+const ROOM_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";   // no 0/O or 1/I, so codes are easy to read
+
+/* ------------------------------------------------------------------
+   QR CODE MAKER (no library needed)
+   makeQR(text) → { size, dark(x,y) }  — byte mode, error correction "M".
+------------------------------------------------------------------ */
+function makeQR(text){
+  const ECC = [0,10,16,26,18,24,16,18,22,22,26,30,22,22,24];   // codewords per block, level M, versions 1–14
+  const BLK = [0,1,1,1,2,2,4,4,4,5,5,5,8,9,9];                  // number of blocks, level M
+  const bytes = Array.from(new TextEncoder().encode(text));
+  const rawModules = v => { let r=(16*v+128)*v+64; if(v>=2){ const n=Math.floor(v/7)+2; r-=(25*n-10)*n-55; if(v>=7) r-=36; } return r; };
+  const dataCap = v => Math.floor(rawModules(v)/8) - ECC[v]*BLK[v];
+
+  // 1. pick the smallest version that fits
+  let ver=1;
+  for(;;ver++){
+    if (ver>14) throw new Error("Text too long for QR");
+    const bits = 4 + (ver<10?8:16) + bytes.length*8;
+    if (bits <= dataCap(ver)*8) break;
+  }
+  const size = ver*4+17;
+
+  // 2. build the data bit stream
+  const bb=[]; const put=(val,len)=>{ for(let i=len-1;i>=0;i--) bb.push((val>>>i)&1); };
+  put(4,4); put(bytes.length, ver<10?8:16); bytes.forEach(b=>put(b,8));
+  const capBits = dataCap(ver)*8;
+  put(0, Math.min(4, capBits-bb.length));
+  while (bb.length%8) bb.push(0);
+  for (let pad=0xEC; bb.length<capBits; pad^=0xEC^0x11) put(pad,8);
+  const data=[]; for(let i=0;i<bb.length;i+=8){ let b=0; for(let j=0;j<8;j++) b=(b<<1)|bb[i+j]; data.push(b); }
+
+  // 3. error correction (Reed–Solomon over GF(256))
+  const EXP=new Array(512), LOG=new Array(256);
+  for(let i=0,x=1;i<255;i++){ EXP[i]=x; LOG[x]=i; x<<=1; if(x&0x100) x^=0x11D; }
+  for(let i=255;i<512;i++) EXP[i]=EXP[i-255];
+  const mul=(a,b)=> a&&b ? EXP[LOG[a]+LOG[b]] : 0;
+  const eccLen=ECC[ver];
+  let gen=[1];
+  for(let i=0;i<eccLen;i++){ const ng=new Array(gen.length+1).fill(0);
+    for(let j=0;j<gen.length;j++){ ng[j]^=gen[j]; ng[j+1]^=mul(gen[j],EXP[i]); } gen=ng; }
+  const rsRemainder = msg => { const r=new Array(eccLen).fill(0);
+    msg.forEach(b=>{ const f=b^r.shift(); r.push(0); for(let j=0;j<eccLen;j++) r[j]^=mul(gen[j+1],f); }); return r; };
+
+  const numBlocks=BLK[ver], rawCw=Math.floor(rawModules(ver)/8);
+  const numShort=numBlocks - rawCw%numBlocks, shortLen=Math.floor(rawCw/numBlocks);
+  const blocks=[]; let k=0;
+  for(let i=0;i<numBlocks;i++){
+    const dat=data.slice(k, k+shortLen-eccLen+(i<numShort?0:1)); k+=dat.length;
+    const ecc=rsRemainder(dat);
+    if(i<numShort) dat.push(-1);           // placeholder so blocks line up
+    blocks.push(dat.concat(ecc));
+  }
+  const cw=[];
+  for(let i=0;i<blocks[0].length;i++) blocks.forEach(b=>{ if(b[i]!==-1) cw.push(b[i]); });
+
+  // 4. place fixed patterns
+  const M=[...Array(size)].map(()=>new Array(size).fill(false));
+  const F=[...Array(size)].map(()=>new Array(size).fill(false));
+  const setF=(x,y,d)=>{ M[y][x]=d; F[y][x]=true; };
+  for(let i=0;i<size;i++){ setF(6,i,i%2===0); setF(i,6,i%2===0); }
+  const finder=(cx,cy)=>{ for(let dy=-4;dy<=4;dy++) for(let dx=-4;dx<=4;dx++){
+      const x=cx+dx,y=cy+dy; if(x<0||y<0||x>=size||y>=size) continue;
+      const d=Math.max(Math.abs(dx),Math.abs(dy)); setF(x,y,d!==2&&d!==4); } };
+  finder(3,3); finder(size-4,3); finder(3,size-4);
+  if(ver>=2){
+    const n=Math.floor(ver/7)+2, step=Math.ceil((ver*4+4)/(n*2-2))*2, pos=[6];
+    for(let p=size-7; pos.length<n; p-=step) pos.splice(1,0,p);
+    pos.forEach((a,i)=>pos.forEach((b,j)=>{
+      if((i===0&&j===0)||(i===0&&j===n-1)||(i===n-1&&j===0)) return;
+      for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++) setF(a+dx,b+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1);
+    }));
+  }
+  const drawFormat=mask=>{
+    const d=(0<<3)|mask; let r=d; for(let i=0;i<10;i++) r=(r<<1)^((r>>>9)*0x537);
+    const bits=((d<<10)|r)^0x5412, bit=i=>((bits>>>i)&1)===1;
+    for(let i=0;i<=5;i++) setF(8,i,bit(i));
+    setF(8,7,bit(6)); setF(8,8,bit(7)); setF(7,8,bit(8));
+    for(let i=9;i<15;i++) setF(14-i,8,bit(i));
+    for(let i=0;i<8;i++) setF(size-1-i,8,bit(i));
+    for(let i=8;i<15;i++) setF(8,size-15+i,bit(i));
+    setF(8,size-8,true);
+  };
+  drawFormat(0);
+  if(ver>=7){
+    let r=ver; for(let i=0;i<12;i++) r=(r<<1)^((r>>>11)*0x1F25);
+    const bits=(ver<<12)|r;
+    for(let i=0;i<18;i++){ const b=((bits>>>i)&1)===1, a=size-11+i%3, c=Math.floor(i/3); setF(a,c,b); setF(c,a,b); }
+  }
+
+  // 5. place the data in the zig-zag order
+  let bi=0;
+  for(let right=size-1; right>=1; right-=2){
+    if(right===6) right=5;
+    for(let v=0; v<size; v++) for(let j=0;j<2;j++){
+      const x=right-j, up=((right+1)&2)===0, y=up?size-1-v:v;
+      if(!F[y][x] && bi<cw.length*8){ M[y][x]=((cw[bi>>>3]>>>(7-(bi&7)))&1)===1; bi++; }
+    }
+  }
+
+  // 6. try all 8 masks, keep the easiest one to scan
+  const MASKS=[(x,y)=>(x+y)%2===0,(x,y)=>y%2===0,(x,y)=>x%3===0,(x,y)=>(x+y)%3===0,
+    (x,y)=>(Math.floor(x/3)+Math.floor(y/2))%2===0,(x,y)=>x*y%2+x*y%3===0,
+    (x,y)=>(x*y%2+x*y%3)%2===0,(x,y)=>((x+y)%2+x*y%3)%2===0];
+  const applyMask=m=>{ for(let y=0;y<size;y++) for(let x=0;x<size;x++) if(!F[y][x]&&MASKS[m](x,y)) M[y][x]=!M[y][x]; };
+  const penalty=()=>{
+    let p=0, dark=0;
+    const line=get=>{ let s=""; for(let i=0;i<size;i++) s+=get(i)?"1":"0";
+      (s.match(/0{5,}|1{5,}/g)||[]).forEach(run=>p+=run.length-2);
+      p += 40*((s.match(/(?=00001011101)/g)||[]).length + (s.match(/(?=10111010000)/g)||[]).length); };
+    for(let i=0;i<size;i++){ line(j=>M[i][j]); line(j=>M[j][i]); }
+    for(let y=0;y<size-1;y++) for(let x=0;x<size-1;x++){ const c=M[y][x];
+      if(c===M[y][x+1]&&c===M[y+1][x]&&c===M[y+1][x+1]) p+=3; }
+    M.forEach(r=>r.forEach(c=>{ if(c) dark++; }));
+    p += 10*Math.floor(Math.abs(dark*20-size*size*10)/(size*size));
+    return p;
+  };
+  let best=0, bestP=Infinity;
+  for(let m=0;m<8;m++){ applyMask(m); drawFormat(m); const pen=penalty(); if(pen<bestP){bestP=pen;best=m;} applyMask(m); }
+  applyMask(best); drawFormat(best);
+  return { size, dark:(x,y)=>M[y][x] };
+}
+
+
+let ROOM = null, phoneOrders = 0;
+const seenOrders = new Set();
+let firstSnapshot = true;
+
+// --- the QR card drawn on the ocean ---
+const qrCard = el("g",{style:"cursor:pointer",opacity:0},map);
+el("rect",{x:498,y:418,width:184,height:230,rx:16,fill:"#ffffff",stroke:"#0b3d91","stroke-width":3},qrCard);
+const qrTitle = el("text",{x:590,y:442,"text-anchor":"middle","font-size":15,"font-weight":800,fill:"#0b3d91",class:"emoji"},qrCard);
+qrTitle.textContent = "📱 Scan to order";
+const qrImg = el("g",{},qrCard);
+const qrCode = el("text",{x:590,y:621,"text-anchor":"middle","font-size":17,"font-weight":800,fill:"#0b3d91","letter-spacing":2},qrCard);
+const qrNote = el("text",{x:590,y:637,"text-anchor":"middle","font-size":11.5,fill:"#5a6f91"},qrCard);
+qrNote.textContent = "Tap to make bigger";
+qrCard.addEventListener("click", ()=>{ if (ROOM) document.getElementById("qrOverlay").classList.add("open"); });
+
+function qrPath(text){
+  const q = makeQR(text); let d = "";
+  for (let y=0;y<q.size;y++) for (let x=0;x<q.size;x++) if (q.dark(x,y)) d += `M${x} ${y}h1v1h-1z`;
+  return {d, size:q.size};
+}
+function orderLink(){ return new URL(ORDER_PAGE + "?room=" + ROOM, location.href).href; }
+
+function showQR(){
+  const link = orderLink(), {d,size} = qrPath(link);
+  const box = 148, scale = box/size;
+  qrImg.innerHTML = "";
+  el("path",{d, fill:"#0b3d91", transform:`translate(${590-box/2} 452) scale(${scale})`, "shape-rendering":"crispEdges"}, qrImg);
+  qrCode.textContent = "Room " + ROOM;
+  qrCard.setAttribute("opacity",1);
+  // the big version for scanning from far away
+  const big = document.getElementById("qrBigSvg");
+  big.setAttribute("viewBox",`-2 -2 ${size+4} ${size+4}`);
+  big.innerHTML = `<rect x="-2" y="-2" width="${size+4}" height="${size+4}" fill="#fff"/><path d="${d}" fill="#0b3d91" shape-rendering="crispEdges"/>`;
+  document.getElementById("qrBigCode").textContent = ROOM;
+  document.getElementById("qrBigLink").textContent = link.replace(/^https?:\/\//,"").replace(/\?.*$/,"");
+}
+function qrStatus(msg){ qrNote.textContent = msg; }
+
+async function claimRoom(){
+  let saved = null; try { saved = sessionStorage.getItem("scsRoom"); } catch(e){}
+  for (let attempt=0; attempt<6; attempt++){
+    const code = (attempt===0 && saved) ? saved
+      : Array.from({length:4},()=>ROOM_CHARS[Math.floor(Math.random()*ROOM_CHARS.length)]).join("");
+    const r = await fetch(`${DB_URL}/scs/rooms/${code}/info.json`, {method:"PUT", body:JSON.stringify({created:{".sv":"timestamp"}})});
+    if (r.ok || (attempt===0 && saved)) {        // our own room from before a page refresh is fine too
+      try { sessionStorage.setItem("scsRoom", code); } catch(e){}
+      return code;
+    }
+  }
+  throw new Error("no free room code");
+}
+
+function takePhoneOrder(key, val){
+  if (!key || seenOrders.has(key) || !val || !val.p) return;
+  seenOrders.add(key);
+  const p = PRODUCTS.find(x=>x.id===val.p); if (!p) return;
+  phoneOrders++;
+  placeOrder(p, true);
+  qrStatus(`${phoneOrders} order${phoneOrders>1?"s":""} from phones`);
+}
+
+function listenForOrders(){
+  const es = new EventSource(`${DB_URL}/scs/rooms/${ROOM}/orders.json`);
+  const handle = (e, isPatch)=>{
+    let m; try { m = JSON.parse(e.data); } catch(err){ return; }
+    if (!m) return;
+    if (m.path === "/") {
+      const all = m.data || {};
+      if (!isPatch && firstSnapshot) { Object.keys(all).forEach(k=>seenOrders.add(k)); firstSnapshot = false; return; }
+      Object.entries(all).forEach(([k,v])=>takePhoneOrder(k,v));
+    } else {
+      const key = m.path.split("/")[1];
+      takePhoneOrder(key, m.data);
+    }
+  };
+  es.addEventListener("put",   e=>handle(e,false));
+  es.addEventListener("patch", e=>handle(e,true));
+  es.addEventListener("open",  ()=>{ if (!phoneOrders) qrStatus("Tap to make bigger"); });
+  es.onerror = ()=>qrStatus("Reconnecting…");
+}
+
+async function startPhoneOrdering(){
+  if (!DB_URL) return;                       // switched off: no QR card
+  qrCard.setAttribute("opacity",1); qrCode.textContent = "Connecting…"; qrStatus("");
+  try {
+    ROOM = await claimRoom();
+    showQR(); listenForOrders();
+  } catch(e) {
+    qrCode.textContent = "Not connected"; qrStatus("Check the internet connection");
+  }
+}
+document.getElementById("qrClose").addEventListener("click",()=>document.getElementById("qrOverlay").classList.remove("open"));
+document.getElementById("qrOverlay").addEventListener("click",e=>{ if(e.target.id==="qrOverlay") e.currentTarget.classList.remove("open"); });
+startPhoneOrdering();
 
 let last=performance.now();
 function loop(now){

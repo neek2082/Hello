@@ -5,7 +5,8 @@
 - Plain HTML, CSS, and JavaScript only.
 - No frameworks or libraries (no React, Vue, Tailwind, etc.).
 - No build step: files are opened or served exactly as written.
-- One exception, approved for the Beer Game and the WMS only: online data is
+- One exception, approved for the Beer Game, the WMS and phone ordering in
+  the supply chain showcase only: online data is
   kept in a free Firebase Realtime Database (Spark plan). It is reached with
   plain web requests (`fetch` and `EventSource`), not Google's code library.
   Each tool has its own project, both in Singapore (asia-southeast1): the
@@ -38,6 +39,11 @@
 - `js/<tool-name>.js`: one script per tool
 - `js/firebase-login.js`: shared sign-in and signed-in database access (Beer Game, WMS)
 - `firebase/`: the database rules published in each Firebase project
+- `supply-chain-showcase.html`: "How a Supply Chain Works", a single-file big-screen animation
+  (kept in the main folder, one file so it can be pasted into other platforms). Its QR code opens
+  `supply-chain-order.html`, the phone page with 4 big order buttons. Phone orders go through
+  their own Firebase project, with no sign-in; `DB_URL` is at the top of the phone-ordering part
+  of each page (empty = phone ordering off). Rules: `firebase/supply-chain.rules.json`.
 
 Update this section as files are added.
 
