@@ -44,6 +44,11 @@
   `supply-chain-order.html`, the phone page with 4 big order buttons. Phone orders go through
   their own Firebase project, with no sign-in; `DB_URL` is at the top of the phone-ordering part
   of each page (empty = phone ordering off). Rules: `firebase/supply-chain.rules.json`.
+- `supply-chain-rush.html`: "Supply Chain Rush", a single-file quiz game for about 15-year-olds
+  (kept in the main folder, one file so it can be pasted into other platforms). 5 stops (Plan,
+  Source, Make, Deliver, Customer), 2 random questions per stop from a bank of 4, 25 seconds each,
+  surprise events between stops. Its leaderboard is saved in the browser (localStorage), so it is
+  shared only by people playing on the same device.
 
 Update this section as files are added.
 
