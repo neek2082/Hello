@@ -47,8 +47,11 @@
 - `supply-chain-rush.html`: "Supply Chain Rush", a single-file quiz game for about 15-year-olds
   (kept in the main folder, one file so it can be pasted into other platforms). 5 stops (Plan,
   Source, Make, Deliver, Customer), 2 random questions per stop from a bank of 4, 25 seconds each,
-  surprise events between stops. Its leaderboard is saved in the browser (localStorage), so it is
-  shared only by people playing on the same device.
+  surprise events between stops. Last step: a hands-on "Load the plane" challenge where teams fit
+  3D-printed blocks into a ULD model with a 3-minute timer; loading score = 1000 − 5 per second
+  taken − 50 per block left over (never below 0), added to the quiz score (`ULD_*` values at the
+  top of that part of the script). Its leaderboard (with load time) is saved in the browser
+  (localStorage), so it is shared only by people playing on the same device.
 
 Update this section as files are added.
 

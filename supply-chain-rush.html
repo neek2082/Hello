@@ -173,7 +173,26 @@
 
   /* End */
   .rank { font-size: 1.5rem; font-weight: 800; color: var(--blue); margin: 6px 0; }
-  .end-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
+  .end-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
+  .stat .sub { font-size: .75rem; color: var(--muted); }
+
+  /* ULD packing challenge */
+  .uld-rules { background: var(--paler); border-radius: 14px; padding: 12px 18px; margin: 16px auto; max-width: 440px; text-align: left; }
+  .uld-rules div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+  .uld-rules b { white-space: nowrap; color: var(--navy); }
+  .clock { font-size: clamp(4rem, 16vw, 7.5rem); font-weight: 800; color: var(--navy); line-height: 1; margin: 10px 0; font-variant-numeric: tabular-nums; }
+  .clock.low { color: var(--wrong); }
+  .uld-bar { height: 14px; background: var(--pale); border-radius: 8px; overflow: hidden; max-width: 520px; margin: 0 auto 20px; }
+  .uld-fill { height: 100%; width: 100%; background: var(--mid); transition: width .25s linear; }
+  .uld-fill.low { background: var(--wrong); }
+  .stepper { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 20px; }
+  .stepper button { width: 60px; height: 60px; border-radius: 14px; border: none; background: var(--pale); color: var(--blue); font-size: 2rem; font-weight: 700; cursor: pointer; }
+  .stepper button:hover { background: var(--line); }
+  .stepper input { width: 110px; text-align: center; font-size: 2.2rem; font-weight: 800; color: var(--navy); padding: 6px; border: 2px solid var(--line); border-radius: 14px; outline: none; }
+  .stepper input:focus { border-color: var(--mid); }
+  .calc { max-width: 380px; margin: 14px auto; text-align: left; }
+  .calc div { display: flex; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+  .calc .total { border-bottom: none; font-size: 1.3rem; font-weight: 800; color: var(--blue); }
   .review { text-align: left; margin-top: 18px; }
   .review-item {
     border: 2px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px;
@@ -207,7 +226,7 @@
     .road { right: 34px; }
     .stop .name { font-size: .65rem; }
     .question { font-size: 1.08rem; }
-    .end-stats { grid-template-columns: 1fr; }
+    .end-stats { grid-template-columns: 1fr 1fr; }
   }
 </style>
 </head>
@@ -233,6 +252,7 @@
         <li>🔥 Get answers right in a row for a streak bonus</li>
         <li>📦 You start with 3 boxes of cargo. A wrong answer loses one</li>
         <li>🎲 Surprise events happen between stops</li>
+        <li>✈️ Last step: pack the blocks into the ULD model (the plane's cargo container) as fast as you can</li>
       </ul>
     </div>
     <p><input type="text" id="playerName" placeholder="Your name or team name" maxlength="30"></p>
@@ -285,6 +305,9 @@
       <div class="next-row hidden" id="nextRow"><button class="btn" id="nextBtn">Keep moving ➜</button></div>
     </div>
   </section>
+
+  <!-- ULD PACKING CHALLENGE (last step) -->
+  <section id="uldCard" class="card center hidden"></section>
 
   <!-- END SCREEN -->
   <section id="endScreen" class="card center hidden"></section>
@@ -688,13 +711,121 @@ function getRank(correct, total) {
   return { t: "Supply Chain Trainee", i: "🌱" };
 }
 
+/* ============ ULD PACKING CHALLENGE (last step) ============
+   Score = 1000 - 5 points per second taken - 50 points per block left over (never below 0). */
+const ULD_LIMIT = 180;      // 3 minutes
+const ULD_START = 1000;     // starting points
+const ULD_PER_SEC = 5;      // points lost per second
+const ULD_PER_BLOCK = 50;   // points lost per block left over
+let uldTimer = null;
+
+function fmtTime(sec) { return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); }
+
 function endGame(delivered) {
   S.over = true;
+  S.delivered = delivered;
   clearInterval(timerId);
   if (delivered) S.stage = STAGES.length;
-  updateRoute(delivered ? "🎉" : "💥");
+  updateRoute(delivered ? "✈️" : "💥");
   $("questionCard").classList.add("hidden");
   $("introCard").classList.add("hidden");
+  showUldIntro();
+}
+
+function showUldIntro() {
+  const c = $("uldCard");
+  c.innerHTML = `
+    <div class="big-emoji">✈️📦</div>
+    <h2>Last step: Load the plane!</h2>
+    <p>${S.delivered ? "Your shipment made it to the airport." : "Your shipment had a rough trip, but you can still win points here."}
+      Fit the 3D-printed blocks into the <b>ULD</b> model, the container that goes inside a plane.</p>
+    <div class="uld-rules">
+      <div><span>⏱️ Time limit</span><b>3 minutes</b></div>
+      <div><span>🏁 You start with</span><b>${ULD_START} points</b></div>
+      <div><span>➖ For every second you take</span><b>−${ULD_PER_SEC} points</b></div>
+      <div><span>➖ For every block left over</span><b>−${ULD_PER_BLOCK} points</b></div>
+    </div>
+    <p>Get your blocks ready, then press Start.</p>
+    <button class="btn" id="uldStartBtn">Start the timer ⏱️</button>`;
+  c.classList.remove("hidden");
+  $("uldStartBtn").onclick = startUld;
+  c.scrollIntoView({ behavior: "smooth" });
+}
+
+function startUld() {
+  clearInterval(uldTimer);
+  const c = $("uldCard");
+  c.innerHTML = `
+    <h2>✈️ Pack the ULD!</h2>
+    <div class="clock" id="uldClock">${fmtTime(ULD_LIMIT)}</div>
+    <div class="uld-bar"><div class="uld-fill" id="uldFill"></div></div>
+    <button class="btn" id="uldDoneBtn">✅ We're done! Stop the timer</button>
+    <p><button class="link-btn" id="uldRestartBtn">Started by mistake? Start the timer again</button></p>`;
+  const start = Date.now();
+  let lastBeep = -1;
+  const tick = () => {
+    const used = Math.min(ULD_LIMIT, Math.floor((Date.now() - start) / 1000));
+    const left = ULD_LIMIT - used;
+    $("uldClock").textContent = fmtTime(left);
+    $("uldClock").classList.toggle("low", left <= 30);
+    $("uldFill").style.width = (left / ULD_LIMIT * 100) + "%";
+    $("uldFill").classList.toggle("low", left <= 30);
+    if (left <= 10 && left > 0 && left !== lastBeep) { lastBeep = left; beep([880], 0.08); }
+    if (left <= 0) stopUld(ULD_LIMIT, true);
+    return used;
+  };
+  uldTimer = setInterval(tick, 250);
+  $("uldDoneBtn").onclick = () => stopUld(Math.max(1, Math.ceil((Date.now() - start) / 1000)), false);
+  $("uldRestartBtn").onclick = startUld;
+}
+
+function stopUld(seconds, timeUp) {
+  clearInterval(uldTimer);
+  S.uldTime = Math.min(ULD_LIMIT, seconds);
+  timeUp ? sfx.wrong() : sfx.right();
+  const c = $("uldCard");
+  c.innerHTML = `
+    <div class="big-emoji">${timeUp ? "⏰" : "🙌"}</div>
+    <h2>${timeUp ? "Time's up!" : "Nice packing!"}</h2>
+    <p>Time taken: <b>${fmtTime(S.uldTime)}</b></p>
+    <p><b>How many blocks are left over?</b><br>Count the blocks that did not fit in the ULD.</p>
+    <div class="stepper">
+      <button id="minusBtn" aria-label="One less">−</button>
+      <input type="number" id="leftInput" value="0" min="0" max="99" inputmode="numeric">
+      <button id="plusBtn" aria-label="One more">+</button>
+    </div>
+    <button class="btn" id="uldScoreBtn">See our loading score ➜</button>`;
+  const inp = $("leftInput");
+  const clean = () => Math.max(0, Math.min(99, parseInt(inp.value, 10) || 0));
+  $("minusBtn").onclick = () => { inp.value = Math.max(0, clean() - 1); };
+  $("plusBtn").onclick = () => { inp.value = Math.min(99, clean() + 1); };
+  $("uldScoreBtn").onclick = () => showUldScore(clean());
+}
+
+function showUldScore(blocksLeft) {
+  S.uldLeft = blocksLeft;
+  const timeLoss = S.uldTime * ULD_PER_SEC;
+  const blockLoss = blocksLeft * ULD_PER_BLOCK;
+  S.uldPts = Math.max(0, ULD_START - timeLoss - blockLoss);
+  S.score += S.uldPts;
+  updateStatus("scoreVal");
+  const c = $("uldCard");
+  c.innerHTML = `
+    <div class="big-emoji">✈️</div>
+    <h2>Your loading score</h2>
+    <div class="calc">
+      <div><span>Starting points</span><b>${ULD_START}</b></div>
+      <div><span>Time taken: ${fmtTime(S.uldTime)} (${S.uldTime} s × ${ULD_PER_SEC})</span><b>−${timeLoss}</b></div>
+      <div><span>Blocks left over: ${blocksLeft} (× ${ULD_PER_BLOCK})</span><b>−${blockLoss}</b></div>
+      <div class="total"><span>Loading score</span><span>+${S.uldPts}</span></div>
+    </div>
+    <p>${blocksLeft === 0 ? "Every block fitted. That's a full, well-packed ULD! 🎯" : "Tip: in real air cargo, empty space costs money, so loaders plan where every box goes."}</p>
+    <button class="btn" id="finalBtn">See final results 🏁</button>`;
+  $("finalBtn").onclick = () => { c.classList.add("hidden"); showResults(S.delivered); };
+}
+
+function showResults(delivered) {
+  updateRoute(delivered ? "🎉" : "💥");
 
   const total = STAGES.length * PER_STAGE;
   const rank = getRank(S.correct, total);
@@ -717,6 +848,7 @@ function endGame(delivered) {
       <div class="stat"><div class="label">Final points</div><div class="value">${S.score}</div></div>
       <div class="stat"><div class="label">Correct answers</div><div class="value">${S.correct} / ${S.answered}</div></div>
       <div class="stat"><div class="label">Best streak</div><div class="value">${S.bestStreak} 🔥</div></div>
+      <div class="stat"><div class="label">Plane loading</div><div class="value">+${S.uldPts}</div><div class="sub">${fmtTime(S.uldTime)} · ${S.uldLeft} left over</div></div>
     </div>
     <div class="board">${boardHtml(myId)}</div>
     <div class="board-actions"><button class="btn" id="againBtn">Play again 🔁</button></div>
@@ -760,7 +892,7 @@ function storeBoard(list) {
 function saveScore() {
   const id = Date.now() + "-" + Math.random().toString(36).slice(2, 6);
   const list = loadBoard();
-  list.push({ id, name: S.name, score: S.score, correct: S.correct, total: S.answered, delivered: S.stage >= STAGES.length });
+  list.push({ id, name: S.name, score: S.score, correct: S.correct, total: S.answered, delivered: S.stage >= STAGES.length, uldTime: S.uldTime, uldLeft: S.uldLeft });
   list.sort((a, b) => b.score - a.score);
   storeBoard(list.slice(0, 50));
   return id;
@@ -774,11 +906,12 @@ function boardHtml(highlightId) {
       <td>${medals[i] || (i + 1)}</td>
       <td>${escapeHtml(r.name)}${r.delivered ? " 🏠" : ""}</td>
       <td class="num">${r.correct}/${r.total}</td>
+      <td class="num">${typeof r.uldTime === "number" ? fmtTime(r.uldTime) : "—"}</td>
       <td class="num">${r.score}</td></tr>`;
   let rows = top.map(row).join("");
-  if (myPos >= 10) rows += `<tr><td colspan="4" class="empty">…</td></tr>` + row(list[myPos], myPos);
+  if (myPos >= 10) rows += `<tr><td colspan="5" class="empty">…</td></tr>` + row(list[myPos], myPos);
   return `<h3>🏆 Leaderboard</h3>` + (list.length
-    ? `<table><thead><tr><th>Place</th><th>Name</th><th class="num">Right</th><th class="num">Points</th></tr></thead><tbody>${rows}</tbody></table>`
+    ? `<table><thead><tr><th>Place</th><th>Name</th><th class="num">Right</th><th class="num">Load time</th><th class="num">Points</th></tr></thead><tbody>${rows}</tbody></table>`
     : `<div class="empty">No scores yet. Be the first!</div>`);
 }
 function showBoard() {
